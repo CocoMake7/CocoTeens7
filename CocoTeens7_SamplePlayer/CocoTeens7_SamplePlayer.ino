@@ -3,6 +3,7 @@
 #include <SPI.h>
 #include <SD.h>
 #include <Bounce.h>
+#include <SerialFlash.h>
 
 // WAV files converted to code by wav2sketch
 #include "AudioSampleArp.h"        // http://www.freesound.org/people/KEVOY/sounds/82583/
