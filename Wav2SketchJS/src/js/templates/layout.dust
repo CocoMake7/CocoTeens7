@@ -1,0 +1,9 @@
+<div class="row full">
+    <div class="small-12 columns">
+        <div data-js-region="base">
+            <canvas id="canvas"></canvas>
+            <div data-js-region="navigation"></div>
+            <div data-js-region="content"></div>
+        </div>
+    </div>
+</div>

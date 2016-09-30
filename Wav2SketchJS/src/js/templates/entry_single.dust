@@ -1,0 +1,21 @@
+<div class="row entry">
+    <div class="small-12 column">
+        <div class="row">
+            <div class="small-9 column">
+                {filename} | {samplename} | {size|humanFileSize} | {modified} | {type} | <a download="{samplename}.h" href="data:application/octet-stream;charset=utf-8;base64,{hfile_base64}">{samplename}.h</a> | <a download="{samplename}.cpp" href="data:application/octet-stream;charset=utf-8;base64,{cppfile_base64}">{samplename}.cpp</a>
+            </div>
+            <div class="column">
+                <div class="expanded button-group">
+                    <a class="button small convert"><i class="fa fa-gear fa-lg"></i></a>
+                    <a class="button small play"><i class="fa fa-play fa-lg"></i></a>
+                    <a class="alert button small delete"><i class="fa fa-trash fa-lg"></i></a>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="small-12 column">
+                <div class="waveform-{cid}"></div>
+            </div>
+        </div>
+    </div>
+</div>

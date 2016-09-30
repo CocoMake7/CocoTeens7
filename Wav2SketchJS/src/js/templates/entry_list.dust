@@ -1,0 +1,17 @@
+<div>
+    <div class="row full" id="drop_zone">
+        <div class="small-12 column">
+            <div class="row">
+                <div class="small-12 column text-center">
+                    <h1>wav2sketchJS</h1>
+                </div>
+            </div>
+            <div class="row">
+                <div class="small-12 column text-center">
+                    <h3>Drop files</h3>
+                </div>
+            </div>
+            <div class="entries" class="row"></div>
+        </div>
+    </div>
+</div>
