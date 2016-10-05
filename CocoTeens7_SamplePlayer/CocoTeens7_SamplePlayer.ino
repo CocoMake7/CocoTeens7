@@ -48,13 +48,13 @@ AudioControlSGTL5000 audioShield;
 //
 Bounce button0 = Bounce(12, 5);
 
-int led1 = 10;
-int led2 = 9;
+int led1 = 3;
+int led2 = 4;
 int led3 = 5;
-int led4 = 4;
-int Coconut = A1;
-int Banana = A2;
-int Sausage = A3;
+int led4 = 6;
+int Coconut = A9;
+int Banana = A8;
+int Sausage = A5;
 int Cheese = A4;
 int capValue1 = 0;
 int capRef1 = 0;
