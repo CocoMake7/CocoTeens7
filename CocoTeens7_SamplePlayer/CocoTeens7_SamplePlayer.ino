@@ -14,15 +14,20 @@
 #include "AudioSampleSch.h"
 #include "AudioSampleHo.h"
 #include "AudioSampleBumm.h"
-#include "AudioSamplePulse.h"
-#include "AudioSampleArp.h"
 
 // Create the Audio components.  These should be created in the
 // order data flows, inputs/sources -> processing -> outputs
+#include <Audio.h>
+#include <Wire.h>
+#include <SPI.h>
+#include <SD.h>
+#include <SerialFlash.h>
 
 AudioPlayMemory player[6]; // six memory players, so we can play all six sounds simultaneously
 AudioMixer4        mix1;    // two 4-channel mixers are needed in
 AudioMixer4        mix2;    // tandem to combine 6 audio sources
+AudioFilterBiquad        biquad;        //xy=210,201
+AudioEffectEnvelope      envelope;      //xy=541,113
 //AudioOutputI2S     headphones;
 AudioOutputAnalog  dac;     // play to both I2S audio board and on-chip DAC
 
@@ -36,7 +41,17 @@ AudioConnection c6(player[4], 0, mix2, 1);
 AudioConnection c7(player[5], 0, mix2, 2);
 //AudioConnection c8(mix2, 0, headphones, 0);
 //AudioConnection c9(mix2, 0, headphones, 1);
-AudioConnection c10(mix2, 0, dac, 0);
+
+// direct out
+//AudioConnection c10(mix2, 0, dac, 0);
+
+// biquad filter
+AudioConnection          patchCord4(mix2, 0, biquad, 0);
+AudioConnection          patchCord5(biquad, 0, dac, 0);
+
+// envelope
+//AudioConnection          patchCord4(mix2, 0, envelope, 0);
+//AudioConnection          patchCord5(envelope, 0, dac, 0);
 
 // Create an object to control the audio shield.
 AudioControlSGTL5000 audioShield;
@@ -64,29 +79,23 @@ int maxValue[4];
 
 
 void setup() {
-  minInterval[0] = 20;
-  minInterval[1] = 20;
-  minInterval[2] = 20;
-  minInterval[3] = 20;
-  calibratedValue[0] = touchRead(touchPin[0]);
-  calibratedValue[1] = touchRead(touchPin[1]);
-  calibratedValue[2] = touchRead(touchPin[2]);
-  calibratedValue[3] = touchRead(touchPin[3]);
+  
+  for(int i = 0; i<4; i++) {
+    // set the Interval that is used to trigger a sound
+    minInterval[i] = 20;
+    // calibrate inputs
+    calibratedValue[i] = touchRead(touchPin[i]);
+    // turn on the output
+    pinMode(led[i], OUTPUT);
+  }
    
   // Configure the pushbutton pins for pullups.
   // Each button should connect from the pin to GND.
   pinMode(12, INPUT_PULLUP);
-  
-  pinMode(led[0], OUTPUT);
-  pinMode(led[1], OUTPUT);
-  pinMode(led[2], OUTPUT);
-  pinMode(led[3], OUTPUT);
 
   // Audio connections require memory to work.  For more
   // detailed information, see the MemoryAndCpuUsage example
   AudioMemory(10);
-
-  // turn on the output
 
 
   // by default the Teensy 3.1 DAC uses 3.3Vp-p output
@@ -103,15 +112,28 @@ void setup() {
   mix2.gain(1, 0.4);
   mix2.gain(2, 0.4);
 
+  // se envelope defaults here, if you use the envelope follower
+  //envelope.delay(0);
+  //envelope.attack(1);
+  //envelope.hold(1000);
+  //envelope.decay(5);
+  // noteOff is not used currently: sustain is on Audio-Level 0
+  //envelope.sustain(0);
+  //envelope.release(1);
+
+  // check the input values on the serial monitor of Arduino IDE
   Serial.begin(9600);
 }
 
+// function to play a file, select player and audio data
 void playTune(int tuneNr, const unsigned int* data) {
   sensorValue[tuneNr] = 0;
   for(int counter = 0; counter < samples; counter ++) {
     sensorValue[tuneNr] += touchRead(touchPin[tuneNr]);
   }
   sensorValue[tuneNr] /= samples;
+
+  // slowly calibrate sensors to context
   calibratedValue[tuneNr] = ((sensitivity * calibratedValue[tuneNr]) + sensorValue[tuneNr])/(sensitivity + 1);
   
   sensorValue[tuneNr] -= calibratedValue[tuneNr];
@@ -120,6 +142,10 @@ void playTune(int tuneNr, const unsigned int* data) {
       Serial.println(isPlayingNow[tuneNr]);
       isPlayingNow[tuneNr] = true;
       player[tuneNr].play(data);
+      
+      // use only if you patched the envelope
+      //envelope.noteOn();
+      
       digitalWrite(led[tuneNr], HIGH);
     } else if (sensorValue[tuneNr] < minInterval[tuneNr]) {
       isPlayingNow[tuneNr] = false;
@@ -127,6 +153,7 @@ void playTune(int tuneNr, const unsigned int* data) {
     }
 }
 
+// select data for effects and filters, chose sensor
 float getSensorValue(int tuneNr){
   sensorValue[tuneNr] = 0;
   for(int counter = 0; counter < samples; counter ++) {
@@ -155,21 +182,29 @@ float getSensorValue(int tuneNr){
 
 void loop() {
   if ( millis() % 10 == 0) {
-//    playTune(Coconut, AudioSampleTig);
+    playTune(Coconut, AudioSampleTig);
     playTune(Banana, AudioSampleSch);
     playTune(Sausage, AudioSampleHo);
-    playTune(Cheese, AudioSampleBumm);
-    getSensorValue(Coconut);
+//    playTune(Cheese, AudioSampleBumm);
+//    getSensorValue(Coconut);
 //    getSensorValue(Banana);
 //    getSensorValue(Sausage);
-//    getSensorValue(Cheese);
+
+// use Cheese for filter effect
+    float setFrequency = getSensorValue(Cheese) * 8000 + 30;
+    biquad.setHighpass(0, setFrequency, 0.5);
+    biquad.setLowpass(1, setFrequency + 200, 0.5);
+
+// use Cheese for envelope
+//      float setHold = 300 - (getSensorValue(Cheese) * 300);
+//      envelope.hold(setHold);
   }
 
   // Update all the button objects
   button0.update();
 
   if (button0.fallingEdge()) {
-    player[4].play(AudioSamplePulse);
+    player[4].play(AudioSampleBumm);
   }
 
 }
