@@ -142,13 +142,18 @@ void playTune(int tuneNr, const unsigned int* data) {
       Serial.println(isPlayingNow[tuneNr]);
       isPlayingNow[tuneNr] = true;
       player[tuneNr].play(data);
-      
+
       // use only if you patched the envelope
       //envelope.noteOn();
-      
+
       digitalWrite(led[tuneNr], HIGH);
+
     } else if (sensorValue[tuneNr] < minInterval[tuneNr]) {
       isPlayingNow[tuneNr] = false;
+
+      // use only if you patched the envelope
+      //envelope.noteOff();
+
       digitalWrite(led[tuneNr], LOW);
     }
 }
@@ -161,7 +166,7 @@ float getSensorValue(int tuneNr){
   }
   sensorValue[tuneNr] /= samples;
   calibratedValue[tuneNr] = ((sensitivity * calibratedValue[tuneNr]) + sensorValue[tuneNr])/(sensitivity + 1);
-  
+
   if(sensorValue[tuneNr] > calibratedValue[tuneNr]){
     sensorValue[tuneNr] -= calibratedValue[tuneNr];
   } else {
