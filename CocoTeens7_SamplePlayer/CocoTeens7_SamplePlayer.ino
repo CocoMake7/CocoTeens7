@@ -82,7 +82,7 @@ void setup() {
   
   for(int i = 0; i<4; i++) {
     // set the Interval that is used to trigger a sound
-    minInterval[i] = 20;
+    minInterval[i] = 40;
     // calibrate inputs
     calibratedValue[i] = touchRead(touchPin[i]);
     // turn on the output
@@ -138,7 +138,7 @@ void playTune(int tuneNr, const unsigned int* data) {
   
   sensorValue[tuneNr] -= calibratedValue[tuneNr];
 
-    if((sensorValue[tuneNr] >= minInterval[tuneNr]) && !isPlayingNow[tuneNr]) {
+    if((sensorValue[tuneNr] >= (minInterval[tuneNr] + 20)) && !isPlayingNow[tuneNr]) {
       Serial.println(isPlayingNow[tuneNr]);
       isPlayingNow[tuneNr] = true;
       player[tuneNr].play(data);
@@ -196,7 +196,7 @@ void loop() {
 //    getSensorValue(Sausage);
 
 // use Cheese for filter effect
-    float setFrequency = getSensorValue(Cheese) * 8000 + 30;
+    float setFrequency = getSensorValue(Cheese) * 7000 + 30;
     biquad.setHighpass(0, setFrequency, 0.5);
     biquad.setLowpass(1, setFrequency + 200, 0.5);
 
