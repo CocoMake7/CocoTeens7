@@ -1,3 +1,7 @@
+// todo:
+// 2. Effekte einbinden versuchen. Werte laufend Kallibrieren und so auch bloss die Distanz messen.
+// >> Referenz relativ und nicht absolut > Veränderung messen. 
+
 #include <Audio.h>
 #include <Wire.h>
 #include <SPI.h>
@@ -6,86 +10,77 @@
 #include <SerialFlash.h>
 
 // WAV files converted to code by wav2sketch
-#include "AudioSampleArp.h"        // http://www.freesound.org/people/KEVOY/sounds/82583/
-#include "AudioSamplePerc.h"       // http://www.freesound.org/people/zgump/sounds/86334/
-#include "AudioSamplePulse.h"        // http://www.freesound.org/people/mhc/sounds/102790/
-#include "AudioSampleKick.h"         // http://www.freesound.org/people/DWSD/sounds/171104/
-#include "AudioSampleGong.h"         // http://www.freesound.org/people/juskiddink/sounds/86773/
-#include "AudioSampleCashregister.h" // http://www.freesound.org/people/kiddpark/sounds/201159/
+#include "AudioSampleTig.h"
+#include "AudioSampleSch.h"
+#include "AudioSampleHo.h"
+#include "AudioSampleBumm.h"
+#include "AudioSamplePulse.h"
+#include "AudioSampleArp.h"
 
 // Create the Audio components.  These should be created in the
 // order data flows, inputs/sources -> processing -> outputs
-//
-AudioPlayMemory    sound0;
-AudioPlayMemory    sound1;  // six memory players, so we can play
-AudioPlayMemory    sound2;  // all six sounds simultaneously
-AudioPlayMemory    sound3;
-AudioPlayMemory    sound4;
-AudioPlayMemory    sound5;
+
+AudioPlayMemory player[6]; // six memory players, so we can play all six sounds simultaneously
 AudioMixer4        mix1;    // two 4-channel mixers are needed in
 AudioMixer4        mix2;    // tandem to combine 6 audio sources
 //AudioOutputI2S     headphones;
 AudioOutputAnalog  dac;     // play to both I2S audio board and on-chip DAC
 
 // Create Audio connections between the components
-//
-AudioConnection c1(sound0, 0, mix1, 0);
-AudioConnection c2(sound1, 0, mix1, 1);
-AudioConnection c3(sound2, 0, mix1, 2);
-AudioConnection c4(sound3, 0, mix1, 3);
+AudioConnection c1(player[0], 0, mix1, 0);
+AudioConnection c2(player[1], 0, mix1, 1);
+AudioConnection c3(player[2], 0, mix1, 2);
+AudioConnection c4(player[3], 0, mix1, 3);
 AudioConnection c5(mix1, 0, mix2, 0);   // output of mix1 into 1st input on mix2
-AudioConnection c6(sound4, 0, mix2, 1);
-AudioConnection c7(sound5, 0, mix2, 2);
+AudioConnection c6(player[4], 0, mix2, 1);
+AudioConnection c7(player[5], 0, mix2, 2);
 //AudioConnection c8(mix2, 0, headphones, 0);
 //AudioConnection c9(mix2, 0, headphones, 1);
 AudioConnection c10(mix2, 0, dac, 0);
 
 // Create an object to control the audio shield.
-// 
 AudioControlSGTL5000 audioShield;
 
 // Bounce objects to read six pushbuttons (pins 0-5)
-//
 Bounce button0 = Bounce(12, 5);
 
-int led1 = 3;
-int led2 = 4;
-int led3 = 5;
-int led4 = 6;
-int Coconut = A9;
-int Banana = A8;
-int Sausage = A5;
-int Cheese = A4;
-int capValue1 = 0;
-int capRef1 = 0;
-int capValue2 = 0;
-int capRef2 = 0;
-int capValue3 = 0;
-int capRef3 = 0;
-int capValue4 = 0;
-int capRef4 = 0;
+int led[4] = {3, 4, 5, 6};
+int touchPin[4] = {A9, A8, A5, A4};
 
+boolean isPlayingNow[4] = {false, false, false, false};
 int samples = 20;
 
-boolean played1 = false;
-boolean played2 = false;
-boolean played3 = false;
-boolean played4 = false;
+const int Coconut = 0;
+const int Banana = 1;
+const int Sausage = 2;
+const int Cheese = 3;
+
+// constant calibration
+int sensitivity = 200; // the lower the faster sensors are adapting
+int minInterval[4];
+int sensorValue[4];
+int calibratedValue[4];
+int maxValue[4];
+
 
 void setup() {
+  minInterval[0] = 20;
+  minInterval[1] = 20;
+  minInterval[2] = 20;
+  minInterval[3] = 20;
+  calibratedValue[0] = touchRead(touchPin[0]);
+  calibratedValue[1] = touchRead(touchPin[1]);
+  calibratedValue[2] = touchRead(touchPin[2]);
+  calibratedValue[3] = touchRead(touchPin[3]);
+   
   // Configure the pushbutton pins for pullups.
   // Each button should connect from the pin to GND.
   pinMode(12, INPUT_PULLUP);
   
-  pinMode(led1, OUTPUT); 
-  pinMode(led2, OUTPUT); 
-  pinMode(led3, OUTPUT); 
-  pinMode(led4, OUTPUT); 
-  
-  capRef1 = touchRead(Coconut);
-  capRef2 = touchRead(Banana);
-  capRef3 = touchRead(Sausage);
-  capRef4 = touchRead(Cheese);
+  pinMode(led[0], OUTPUT);
+  pinMode(led[1], OUTPUT);
+  pinMode(led[2], OUTPUT);
+  pinMode(led[3], OUTPUT);
 
   // Audio connections require memory to work.  For more
   // detailed information, see the MemoryAndCpuUsage example
@@ -107,76 +102,74 @@ void setup() {
   mix1.gain(3, 0.4);
   mix2.gain(1, 0.4);
   mix2.gain(2, 0.4);
+
+  Serial.begin(9600);
+}
+
+void playTune(int tuneNr, const unsigned int* data) {
+  sensorValue[tuneNr] = 0;
+  for(int counter = 0; counter < samples; counter ++) {
+    sensorValue[tuneNr] += touchRead(touchPin[tuneNr]);
+  }
+  sensorValue[tuneNr] /= samples;
+  calibratedValue[tuneNr] = ((sensitivity * calibratedValue[tuneNr]) + sensorValue[tuneNr])/(sensitivity + 1);
+  
+  sensorValue[tuneNr] -= calibratedValue[tuneNr];
+
+    if((sensorValue[tuneNr] >= minInterval[tuneNr]) && !isPlayingNow[tuneNr]) {
+      Serial.println(isPlayingNow[tuneNr]);
+      isPlayingNow[tuneNr] = true;
+      player[tuneNr].play(data);
+      digitalWrite(led[tuneNr], HIGH);
+    } else if (sensorValue[tuneNr] < minInterval[tuneNr]) {
+      isPlayingNow[tuneNr] = false;
+      digitalWrite(led[tuneNr], LOW);
+    }
+}
+
+float getSensorValue(int tuneNr){
+  sensorValue[tuneNr] = 0;
+  for(int counter = 0; counter < samples; counter ++) {
+    sensorValue[tuneNr] += touchRead(touchPin[tuneNr]);
+  }
+  sensorValue[tuneNr] /= samples;
+  calibratedValue[tuneNr] = ((sensitivity * calibratedValue[tuneNr]) + sensorValue[tuneNr])/(sensitivity + 1);
+  
+  if(sensorValue[tuneNr] > calibratedValue[tuneNr]){
+    sensorValue[tuneNr] -= calibratedValue[tuneNr];
+  } else {
+    sensorValue[tuneNr] = 0;
+  }
+
+  if(sensorValue[tuneNr] > maxValue[tuneNr]) {
+    maxValue[tuneNr] = sensorValue[tuneNr];
+  }
+  float value = ((float) sensorValue[tuneNr])/ ((float) maxValue[tuneNr]);
+  analogWrite(led[tuneNr], pow(value, 2.3) * 1024);
+  Serial.print("Pin Nr ");
+  Serial.print(tuneNr);
+  Serial.print(": ");
+  Serial.println(value);
+  return value;
 }
 
 void loop() {
+  if ( millis() % 10 == 0) {
+//    playTune(Coconut, AudioSampleTig);
+    playTune(Banana, AudioSampleSch);
+    playTune(Sausage, AudioSampleHo);
+    playTune(Cheese, AudioSampleBumm);
+    getSensorValue(Coconut);
+//    getSensorValue(Banana);
+//    getSensorValue(Sausage);
+//    getSensorValue(Cheese);
+  }
+
   // Update all the button objects
   button0.update();
-  
-  for(int counter = 0; counter < samples; counter ++)
-    {
-    capValue1 += touchRead(Coconut) - capRef1;
-    }
-  capValue1 /= samples;
-  if (capValue1 >= 100 && !played1) {
-    played1 = true;
-    sound0.play(AudioSampleKick);
-    digitalWrite(led1, HIGH);
-  } else if (capValue1 <= 50) {
-    played1 = false;
-    digitalWrite(led1, LOW);
-  }
-  capValue1 = 0;
-  
-  for(int counter = 0; counter < samples; counter ++)
-    {
-    capValue2 += touchRead(Banana) - capRef2;
-    }
-  capValue2 /= samples;
-  if (capValue2 >= 100 && !played2) {
-    played2 = true;
-    sound1.play(AudioSamplePulse);
-    digitalWrite(led2, HIGH);  
-  } else if (capValue2 <= 50) {
-    played2 = false;
-    digitalWrite(led2, LOW);
-  }
-  capValue2 = 0;
-  
-  for(int counter = 0; counter < samples; counter ++)
-    {
-    capValue3 += touchRead(Sausage) - capRef3;
-    }
-  capValue3 /= samples;
-  if (capValue3 >= 100 && !played3) {
-    played3 = true;
-    sound2.play(AudioSamplePerc);
-    digitalWrite(led3, HIGH); 
-  } else if (capValue3 <= 50) {
-    played3 = false;
-    digitalWrite(led3, LOW);
-  }
-  capValue3 = 0;
-  
-  for(int counter = 0; counter < samples; counter ++)
-    {
-    capValue4 += touchRead(Cheese) - capRef4;
-    }
-  capValue4 /= samples; 
-  if (capValue4 >= 100 && !played4) {
-    played4 = true;
-    sound3.play(AudioSampleArp);
-    digitalWrite(led4, HIGH);  
-  } else if (capValue4 <= 50) {
-    played4 = false;
-    digitalWrite(led4, LOW);
-  }
-  capValue4 = 0;
 
   if (button0.fallingEdge()) {
-    // comment this line to work with Teensy 3.0.
-    // the Gong sound is very long, too much for 3.0's memory
-    sound4.play(AudioSampleGong);
+    player[4].play(AudioSamplePulse);
   }
 
 }
