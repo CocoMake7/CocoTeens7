@@ -1,2 +1,6 @@
 .idea
 node_modules
+.DS_Store
+Wav2SketchJS/node_modules
+Wav2SketchJS/build/
+
