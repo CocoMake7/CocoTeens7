@@ -6,14 +6,16 @@
             </div>
             <div class="column">
                 <div class="expanded button-group">
-                    <a class="button small convert"><i class="fa fa-gear fa-lg"></i></a>
-                    <a class="button small play"><i class="fa fa-play fa-lg"></i></a>
+                    <a class="button small convert"><i class="fa fa-wrench fa-lg"></i></a>
                     <a class="alert button small delete"><i class="fa fa-trash fa-lg"></i></a>
                 </div>
             </div>
         </div>
         <div class="row">
-            <div class="small-12 column">
+            <div class="column align-self-middle">
+                    <a class="large expanded button play"><i class="fa fa-play fa-lg"></i></a>
+            </div>
+            <div class="small-10 column align-self-middle">
                 <div class="waveform-{cid}"></div>
             </div>
         </div>

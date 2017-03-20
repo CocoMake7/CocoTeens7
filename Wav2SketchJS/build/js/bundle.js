@@ -2182,1559 +2182,10 @@ return Backbone.LocalStorage;
 });
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"jquery":"/home/stahl/duino/CocoTeens7/Wav2SketchJS/node_modules/jquery/dist/jquery.js","underscore":"/home/stahl/duino/CocoTeens7/Wav2SketchJS/node_modules/backbone/node_modules/underscore/underscore.js"}],"/home/stahl/duino/CocoTeens7/Wav2SketchJS/node_modules/backbone/node_modules/underscore/underscore.js":[function(require,module,exports){
-//     Underscore.js 1.8.3
-//     http://underscorejs.org
-//     (c) 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
-//     Underscore may be freely distributed under the MIT license.
-
-(function() {
-
-  // Baseline setup
-  // --------------
-
-  // Establish the root object, `window` in the browser, or `exports` on the server.
-  var root = this;
-
-  // Save the previous value of the `_` variable.
-  var previousUnderscore = root._;
-
-  // Save bytes in the minified (but not gzipped) version:
-  var ArrayProto = Array.prototype, ObjProto = Object.prototype, FuncProto = Function.prototype;
-
-  // Create quick reference variables for speed access to core prototypes.
-  var
-    push             = ArrayProto.push,
-    slice            = ArrayProto.slice,
-    toString         = ObjProto.toString,
-    hasOwnProperty   = ObjProto.hasOwnProperty;
-
-  // All **ECMAScript 5** native function implementations that we hope to use
-  // are declared here.
-  var
-    nativeIsArray      = Array.isArray,
-    nativeKeys         = Object.keys,
-    nativeBind         = FuncProto.bind,
-    nativeCreate       = Object.create;
-
-  // Naked function reference for surrogate-prototype-swapping.
-  var Ctor = function(){};
-
-  // Create a safe reference to the Underscore object for use below.
-  var _ = function(obj) {
-    if (obj instanceof _) return obj;
-    if (!(this instanceof _)) return new _(obj);
-    this._wrapped = obj;
-  };
-
-  // Export the Underscore object for **Node.js**, with
-  // backwards-compatibility for the old `require()` API. If we're in
-  // the browser, add `_` as a global object.
-  if (typeof exports !== 'undefined') {
-    if (typeof module !== 'undefined' && module.exports) {
-      exports = module.exports = _;
-    }
-    exports._ = _;
-  } else {
-    root._ = _;
-  }
-
-  // Current version.
-  _.VERSION = '1.8.3';
-
-  // Internal function that returns an efficient (for current engines) version
-  // of the passed-in callback, to be repeatedly applied in other Underscore
-  // functions.
-  var optimizeCb = function(func, context, argCount) {
-    if (context === void 0) return func;
-    switch (argCount == null ? 3 : argCount) {
-      case 1: return function(value) {
-        return func.call(context, value);
-      };
-      case 2: return function(value, other) {
-        return func.call(context, value, other);
-      };
-      case 3: return function(value, index, collection) {
-        return func.call(context, value, index, collection);
-      };
-      case 4: return function(accumulator, value, index, collection) {
-        return func.call(context, accumulator, value, index, collection);
-      };
-    }
-    return function() {
-      return func.apply(context, arguments);
-    };
-  };
-
-  // A mostly-internal function to generate callbacks that can be applied
-  // to each element in a collection, returning the desired result — either
-  // identity, an arbitrary callback, a property matcher, or a property accessor.
-  var cb = function(value, context, argCount) {
-    if (value == null) return _.identity;
-    if (_.isFunction(value)) return optimizeCb(value, context, argCount);
-    if (_.isObject(value)) return _.matcher(value);
-    return _.property(value);
-  };
-  _.iteratee = function(value, context) {
-    return cb(value, context, Infinity);
-  };
-
-  // An internal function for creating assigner functions.
-  var createAssigner = function(keysFunc, undefinedOnly) {
-    return function(obj) {
-      var length = arguments.length;
-      if (length < 2 || obj == null) return obj;
-      for (var index = 1; index < length; index++) {
-        var source = arguments[index],
-            keys = keysFunc(source),
-            l = keys.length;
-        for (var i = 0; i < l; i++) {
-          var key = keys[i];
-          if (!undefinedOnly || obj[key] === void 0) obj[key] = source[key];
-        }
-      }
-      return obj;
-    };
-  };
-
-  // An internal function for creating a new object that inherits from another.
-  var baseCreate = function(prototype) {
-    if (!_.isObject(prototype)) return {};
-    if (nativeCreate) return nativeCreate(prototype);
-    Ctor.prototype = prototype;
-    var result = new Ctor;
-    Ctor.prototype = null;
-    return result;
-  };
-
-  var property = function(key) {
-    return function(obj) {
-      return obj == null ? void 0 : obj[key];
-    };
-  };
-
-  // Helper for collection methods to determine whether a collection
-  // should be iterated as an array or as an object
-  // Related: http://people.mozilla.org/~jorendorff/es6-draft.html#sec-tolength
-  // Avoids a very nasty iOS 8 JIT bug on ARM-64. #2094
-  var MAX_ARRAY_INDEX = Math.pow(2, 53) - 1;
-  var getLength = property('length');
-  var isArrayLike = function(collection) {
-    var length = getLength(collection);
-    return typeof length == 'number' && length >= 0 && length <= MAX_ARRAY_INDEX;
-  };
-
-  // Collection Functions
-  // --------------------
-
-  // The cornerstone, an `each` implementation, aka `forEach`.
-  // Handles raw objects in addition to array-likes. Treats all
-  // sparse array-likes as if they were dense.
-  _.each = _.forEach = function(obj, iteratee, context) {
-    iteratee = optimizeCb(iteratee, context);
-    var i, length;
-    if (isArrayLike(obj)) {
-      for (i = 0, length = obj.length; i < length; i++) {
-        iteratee(obj[i], i, obj);
-      }
-    } else {
-      var keys = _.keys(obj);
-      for (i = 0, length = keys.length; i < length; i++) {
-        iteratee(obj[keys[i]], keys[i], obj);
-      }
-    }
-    return obj;
-  };
-
-  // Return the results of applying the iteratee to each element.
-  _.map = _.collect = function(obj, iteratee, context) {
-    iteratee = cb(iteratee, context);
-    var keys = !isArrayLike(obj) && _.keys(obj),
-        length = (keys || obj).length,
-        results = Array(length);
-    for (var index = 0; index < length; index++) {
-      var currentKey = keys ? keys[index] : index;
-      results[index] = iteratee(obj[currentKey], currentKey, obj);
-    }
-    return results;
-  };
-
-  // Create a reducing function iterating left or right.
-  function createReduce(dir) {
-    // Optimized iterator function as using arguments.length
-    // in the main function will deoptimize the, see #1991.
-    function iterator(obj, iteratee, memo, keys, index, length) {
-      for (; index >= 0 && index < length; index += dir) {
-        var currentKey = keys ? keys[index] : index;
-        memo = iteratee(memo, obj[currentKey], currentKey, obj);
-      }
-      return memo;
-    }
-
-    return function(obj, iteratee, memo, context) {
-      iteratee = optimizeCb(iteratee, context, 4);
-      var keys = !isArrayLike(obj) && _.keys(obj),
-          length = (keys || obj).length,
-          index = dir > 0 ? 0 : length - 1;
-      // Determine the initial value if none is provided.
-      if (arguments.length < 3) {
-        memo = obj[keys ? keys[index] : index];
-        index += dir;
-      }
-      return iterator(obj, iteratee, memo, keys, index, length);
-    };
-  }
-
-  // **Reduce** builds up a single result from a list of values, aka `inject`,
-  // or `foldl`.
-  _.reduce = _.foldl = _.inject = createReduce(1);
-
-  // The right-associative version of reduce, also known as `foldr`.
-  _.reduceRight = _.foldr = createReduce(-1);
-
-  // Return the first value which passes a truth test. Aliased as `detect`.
-  _.find = _.detect = function(obj, predicate, context) {
-    var key;
-    if (isArrayLike(obj)) {
-      key = _.findIndex(obj, predicate, context);
-    } else {
-      key = _.findKey(obj, predicate, context);
-    }
-    if (key !== void 0 && key !== -1) return obj[key];
-  };
-
-  // Return all the elements that pass a truth test.
-  // Aliased as `select`.
-  _.filter = _.select = function(obj, predicate, context) {
-    var results = [];
-    predicate = cb(predicate, context);
-    _.each(obj, function(value, index, list) {
-      if (predicate(value, index, list)) results.push(value);
-    });
-    return results;
-  };
-
-  // Return all the elements for which a truth test fails.
-  _.reject = function(obj, predicate, context) {
-    return _.filter(obj, _.negate(cb(predicate)), context);
-  };
-
-  // Determine whether all of the elements match a truth test.
-  // Aliased as `all`.
-  _.every = _.all = function(obj, predicate, context) {
-    predicate = cb(predicate, context);
-    var keys = !isArrayLike(obj) && _.keys(obj),
-        length = (keys || obj).length;
-    for (var index = 0; index < length; index++) {
-      var currentKey = keys ? keys[index] : index;
-      if (!predicate(obj[currentKey], currentKey, obj)) return false;
-    }
-    return true;
-  };
-
-  // Determine if at least one element in the object matches a truth test.
-  // Aliased as `any`.
-  _.some = _.any = function(obj, predicate, context) {
-    predicate = cb(predicate, context);
-    var keys = !isArrayLike(obj) && _.keys(obj),
-        length = (keys || obj).length;
-    for (var index = 0; index < length; index++) {
-      var currentKey = keys ? keys[index] : index;
-      if (predicate(obj[currentKey], currentKey, obj)) return true;
-    }
-    return false;
-  };
-
-  // Determine if the array or object contains a given item (using `===`).
-  // Aliased as `includes` and `include`.
-  _.contains = _.includes = _.include = function(obj, item, fromIndex, guard) {
-    if (!isArrayLike(obj)) obj = _.values(obj);
-    if (typeof fromIndex != 'number' || guard) fromIndex = 0;
-    return _.indexOf(obj, item, fromIndex) >= 0;
-  };
-
-  // Invoke a method (with arguments) on every item in a collection.
-  _.invoke = function(obj, method) {
-    var args = slice.call(arguments, 2);
-    var isFunc = _.isFunction(method);
-    return _.map(obj, function(value) {
-      var func = isFunc ? method : value[method];
-      return func == null ? func : func.apply(value, args);
-    });
-  };
-
-  // Convenience version of a common use case of `map`: fetching a property.
-  _.pluck = function(obj, key) {
-    return _.map(obj, _.property(key));
-  };
-
-  // Convenience version of a common use case of `filter`: selecting only objects
-  // containing specific `key:value` pairs.
-  _.where = function(obj, attrs) {
-    return _.filter(obj, _.matcher(attrs));
-  };
-
-  // Convenience version of a common use case of `find`: getting the first object
-  // containing specific `key:value` pairs.
-  _.findWhere = function(obj, attrs) {
-    return _.find(obj, _.matcher(attrs));
-  };
-
-  // Return the maximum element (or element-based computation).
-  _.max = function(obj, iteratee, context) {
-    var result = -Infinity, lastComputed = -Infinity,
-        value, computed;
-    if (iteratee == null && obj != null) {
-      obj = isArrayLike(obj) ? obj : _.values(obj);
-      for (var i = 0, length = obj.length; i < length; i++) {
-        value = obj[i];
-        if (value > result) {
-          result = value;
-        }
-      }
-    } else {
-      iteratee = cb(iteratee, context);
-      _.each(obj, function(value, index, list) {
-        computed = iteratee(value, index, list);
-        if (computed > lastComputed || computed === -Infinity && result === -Infinity) {
-          result = value;
-          lastComputed = computed;
-        }
-      });
-    }
-    return result;
-  };
-
-  // Return the minimum element (or element-based computation).
-  _.min = function(obj, iteratee, context) {
-    var result = Infinity, lastComputed = Infinity,
-        value, computed;
-    if (iteratee == null && obj != null) {
-      obj = isArrayLike(obj) ? obj : _.values(obj);
-      for (var i = 0, length = obj.length; i < length; i++) {
-        value = obj[i];
-        if (value < result) {
-          result = value;
-        }
-      }
-    } else {
-      iteratee = cb(iteratee, context);
-      _.each(obj, function(value, index, list) {
-        computed = iteratee(value, index, list);
-        if (computed < lastComputed || computed === Infinity && result === Infinity) {
-          result = value;
-          lastComputed = computed;
-        }
-      });
-    }
-    return result;
-  };
-
-  // Shuffle a collection, using the modern version of the
-  // [Fisher-Yates shuffle](http://en.wikipedia.org/wiki/Fisher–Yates_shuffle).
-  _.shuffle = function(obj) {
-    var set = isArrayLike(obj) ? obj : _.values(obj);
-    var length = set.length;
-    var shuffled = Array(length);
-    for (var index = 0, rand; index < length; index++) {
-      rand = _.random(0, index);
-      if (rand !== index) shuffled[index] = shuffled[rand];
-      shuffled[rand] = set[index];
-    }
-    return shuffled;
-  };
-
-  // Sample **n** random values from a collection.
-  // If **n** is not specified, returns a single random element.
-  // The internal `guard` argument allows it to work with `map`.
-  _.sample = function(obj, n, guard) {
-    if (n == null || guard) {
-      if (!isArrayLike(obj)) obj = _.values(obj);
-      return obj[_.random(obj.length - 1)];
-    }
-    return _.shuffle(obj).slice(0, Math.max(0, n));
-  };
-
-  // Sort the object's values by a criterion produced by an iteratee.
-  _.sortBy = function(obj, iteratee, context) {
-    iteratee = cb(iteratee, context);
-    return _.pluck(_.map(obj, function(value, index, list) {
-      return {
-        value: value,
-        index: index,
-        criteria: iteratee(value, index, list)
-      };
-    }).sort(function(left, right) {
-      var a = left.criteria;
-      var b = right.criteria;
-      if (a !== b) {
-        if (a > b || a === void 0) return 1;
-        if (a < b || b === void 0) return -1;
-      }
-      return left.index - right.index;
-    }), 'value');
-  };
-
-  // An internal function used for aggregate "group by" operations.
-  var group = function(behavior) {
-    return function(obj, iteratee, context) {
-      var result = {};
-      iteratee = cb(iteratee, context);
-      _.each(obj, function(value, index) {
-        var key = iteratee(value, index, obj);
-        behavior(result, value, key);
-      });
-      return result;
-    };
-  };
-
-  // Groups the object's values by a criterion. Pass either a string attribute
-  // to group by, or a function that returns the criterion.
-  _.groupBy = group(function(result, value, key) {
-    if (_.has(result, key)) result[key].push(value); else result[key] = [value];
-  });
-
-  // Indexes the object's values by a criterion, similar to `groupBy`, but for
-  // when you know that your index values will be unique.
-  _.indexBy = group(function(result, value, key) {
-    result[key] = value;
-  });
-
-  // Counts instances of an object that group by a certain criterion. Pass
-  // either a string attribute to count by, or a function that returns the
-  // criterion.
-  _.countBy = group(function(result, value, key) {
-    if (_.has(result, key)) result[key]++; else result[key] = 1;
-  });
-
-  // Safely create a real, live array from anything iterable.
-  _.toArray = function(obj) {
-    if (!obj) return [];
-    if (_.isArray(obj)) return slice.call(obj);
-    if (isArrayLike(obj)) return _.map(obj, _.identity);
-    return _.values(obj);
-  };
-
-  // Return the number of elements in an object.
-  _.size = function(obj) {
-    if (obj == null) return 0;
-    return isArrayLike(obj) ? obj.length : _.keys(obj).length;
-  };
-
-  // Split a collection into two arrays: one whose elements all satisfy the given
-  // predicate, and one whose elements all do not satisfy the predicate.
-  _.partition = function(obj, predicate, context) {
-    predicate = cb(predicate, context);
-    var pass = [], fail = [];
-    _.each(obj, function(value, key, obj) {
-      (predicate(value, key, obj) ? pass : fail).push(value);
-    });
-    return [pass, fail];
-  };
-
-  // Array Functions
-  // ---------------
-
-  // Get the first element of an array. Passing **n** will return the first N
-  // values in the array. Aliased as `head` and `take`. The **guard** check
-  // allows it to work with `_.map`.
-  _.first = _.head = _.take = function(array, n, guard) {
-    if (array == null) return void 0;
-    if (n == null || guard) return array[0];
-    return _.initial(array, array.length - n);
-  };
-
-  // Returns everything but the last entry of the array. Especially useful on
-  // the arguments object. Passing **n** will return all the values in
-  // the array, excluding the last N.
-  _.initial = function(array, n, guard) {
-    return slice.call(array, 0, Math.max(0, array.length - (n == null || guard ? 1 : n)));
-  };
-
-  // Get the last element of an array. Passing **n** will return the last N
-  // values in the array.
-  _.last = function(array, n, guard) {
-    if (array == null) return void 0;
-    if (n == null || guard) return array[array.length - 1];
-    return _.rest(array, Math.max(0, array.length - n));
-  };
-
-  // Returns everything but the first entry of the array. Aliased as `tail` and `drop`.
-  // Especially useful on the arguments object. Passing an **n** will return
-  // the rest N values in the array.
-  _.rest = _.tail = _.drop = function(array, n, guard) {
-    return slice.call(array, n == null || guard ? 1 : n);
-  };
-
-  // Trim out all falsy values from an array.
-  _.compact = function(array) {
-    return _.filter(array, _.identity);
-  };
-
-  // Internal implementation of a recursive `flatten` function.
-  var flatten = function(input, shallow, strict, startIndex) {
-    var output = [], idx = 0;
-    for (var i = startIndex || 0, length = getLength(input); i < length; i++) {
-      var value = input[i];
-      if (isArrayLike(value) && (_.isArray(value) || _.isArguments(value))) {
-        //flatten current level of array or arguments object
-        if (!shallow) value = flatten(value, shallow, strict);
-        var j = 0, len = value.length;
-        output.length += len;
-        while (j < len) {
-          output[idx++] = value[j++];
-        }
-      } else if (!strict) {
-        output[idx++] = value;
-      }
-    }
-    return output;
-  };
-
-  // Flatten out an array, either recursively (by default), or just one level.
-  _.flatten = function(array, shallow) {
-    return flatten(array, shallow, false);
-  };
-
-  // Return a version of the array that does not contain the specified value(s).
-  _.without = function(array) {
-    return _.difference(array, slice.call(arguments, 1));
-  };
-
-  // Produce a duplicate-free version of the array. If the array has already
-  // been sorted, you have the option of using a faster algorithm.
-  // Aliased as `unique`.
-  _.uniq = _.unique = function(array, isSorted, iteratee, context) {
-    if (!_.isBoolean(isSorted)) {
-      context = iteratee;
-      iteratee = isSorted;
-      isSorted = false;
-    }
-    if (iteratee != null) iteratee = cb(iteratee, context);
-    var result = [];
-    var seen = [];
-    for (var i = 0, length = getLength(array); i < length; i++) {
-      var value = array[i],
-          computed = iteratee ? iteratee(value, i, array) : value;
-      if (isSorted) {
-        if (!i || seen !== computed) result.push(value);
-        seen = computed;
-      } else if (iteratee) {
-        if (!_.contains(seen, computed)) {
-          seen.push(computed);
-          result.push(value);
-        }
-      } else if (!_.contains(result, value)) {
-        result.push(value);
-      }
-    }
-    return result;
-  };
-
-  // Produce an array that contains the union: each distinct element from all of
-  // the passed-in arrays.
-  _.union = function() {
-    return _.uniq(flatten(arguments, true, true));
-  };
-
-  // Produce an array that contains every item shared between all the
-  // passed-in arrays.
-  _.intersection = function(array) {
-    var result = [];
-    var argsLength = arguments.length;
-    for (var i = 0, length = getLength(array); i < length; i++) {
-      var item = array[i];
-      if (_.contains(result, item)) continue;
-      for (var j = 1; j < argsLength; j++) {
-        if (!_.contains(arguments[j], item)) break;
-      }
-      if (j === argsLength) result.push(item);
-    }
-    return result;
-  };
-
-  // Take the difference between one array and a number of other arrays.
-  // Only the elements present in just the first array will remain.
-  _.difference = function(array) {
-    var rest = flatten(arguments, true, true, 1);
-    return _.filter(array, function(value){
-      return !_.contains(rest, value);
-    });
-  };
-
-  // Zip together multiple lists into a single array -- elements that share
-  // an index go together.
-  _.zip = function() {
-    return _.unzip(arguments);
-  };
-
-  // Complement of _.zip. Unzip accepts an array of arrays and groups
-  // each array's elements on shared indices
-  _.unzip = function(array) {
-    var length = array && _.max(array, getLength).length || 0;
-    var result = Array(length);
-
-    for (var index = 0; index < length; index++) {
-      result[index] = _.pluck(array, index);
-    }
-    return result;
-  };
-
-  // Converts lists into objects. Pass either a single array of `[key, value]`
-  // pairs, or two parallel arrays of the same length -- one of keys, and one of
-  // the corresponding values.
-  _.object = function(list, values) {
-    var result = {};
-    for (var i = 0, length = getLength(list); i < length; i++) {
-      if (values) {
-        result[list[i]] = values[i];
-      } else {
-        result[list[i][0]] = list[i][1];
-      }
-    }
-    return result;
-  };
-
-  // Generator function to create the findIndex and findLastIndex functions
-  function createPredicateIndexFinder(dir) {
-    return function(array, predicate, context) {
-      predicate = cb(predicate, context);
-      var length = getLength(array);
-      var index = dir > 0 ? 0 : length - 1;
-      for (; index >= 0 && index < length; index += dir) {
-        if (predicate(array[index], index, array)) return index;
-      }
-      return -1;
-    };
-  }
-
-  // Returns the first index on an array-like that passes a predicate test
-  _.findIndex = createPredicateIndexFinder(1);
-  _.findLastIndex = createPredicateIndexFinder(-1);
-
-  // Use a comparator function to figure out the smallest index at which
-  // an object should be inserted so as to maintain order. Uses binary search.
-  _.sortedIndex = function(array, obj, iteratee, context) {
-    iteratee = cb(iteratee, context, 1);
-    var value = iteratee(obj);
-    var low = 0, high = getLength(array);
-    while (low < high) {
-      var mid = Math.floor((low + high) / 2);
-      if (iteratee(array[mid]) < value) low = mid + 1; else high = mid;
-    }
-    return low;
-  };
-
-  // Generator function to create the indexOf and lastIndexOf functions
-  function createIndexFinder(dir, predicateFind, sortedIndex) {
-    return function(array, item, idx) {
-      var i = 0, length = getLength(array);
-      if (typeof idx == 'number') {
-        if (dir > 0) {
-            i = idx >= 0 ? idx : Math.max(idx + length, i);
-        } else {
-            length = idx >= 0 ? Math.min(idx + 1, length) : idx + length + 1;
-        }
-      } else if (sortedIndex && idx && length) {
-        idx = sortedIndex(array, item);
-        return array[idx] === item ? idx : -1;
-      }
-      if (item !== item) {
-        idx = predicateFind(slice.call(array, i, length), _.isNaN);
-        return idx >= 0 ? idx + i : -1;
-      }
-      for (idx = dir > 0 ? i : length - 1; idx >= 0 && idx < length; idx += dir) {
-        if (array[idx] === item) return idx;
-      }
-      return -1;
-    };
-  }
-
-  // Return the position of the first occurrence of an item in an array,
-  // or -1 if the item is not included in the array.
-  // If the array is large and already in sort order, pass `true`
-  // for **isSorted** to use binary search.
-  _.indexOf = createIndexFinder(1, _.findIndex, _.sortedIndex);
-  _.lastIndexOf = createIndexFinder(-1, _.findLastIndex);
-
-  // Generate an integer Array containing an arithmetic progression. A port of
-  // the native Python `range()` function. See
-  // [the Python documentation](http://docs.python.org/library/functions.html#range).
-  _.range = function(start, stop, step) {
-    if (stop == null) {
-      stop = start || 0;
-      start = 0;
-    }
-    step = step || 1;
-
-    var length = Math.max(Math.ceil((stop - start) / step), 0);
-    var range = Array(length);
-
-    for (var idx = 0; idx < length; idx++, start += step) {
-      range[idx] = start;
-    }
-
-    return range;
-  };
-
-  // Function (ahem) Functions
-  // ------------------
-
-  // Determines whether to execute a function as a constructor
-  // or a normal function with the provided arguments
-  var executeBound = function(sourceFunc, boundFunc, context, callingContext, args) {
-    if (!(callingContext instanceof boundFunc)) return sourceFunc.apply(context, args);
-    var self = baseCreate(sourceFunc.prototype);
-    var result = sourceFunc.apply(self, args);
-    if (_.isObject(result)) return result;
-    return self;
-  };
-
-  // Create a function bound to a given object (assigning `this`, and arguments,
-  // optionally). Delegates to **ECMAScript 5**'s native `Function.bind` if
-  // available.
-  _.bind = function(func, context) {
-    if (nativeBind && func.bind === nativeBind) return nativeBind.apply(func, slice.call(arguments, 1));
-    if (!_.isFunction(func)) throw new TypeError('Bind must be called on a function');
-    var args = slice.call(arguments, 2);
-    var bound = function() {
-      return executeBound(func, bound, context, this, args.concat(slice.call(arguments)));
-    };
-    return bound;
-  };
-
-  // Partially apply a function by creating a version that has had some of its
-  // arguments pre-filled, without changing its dynamic `this` context. _ acts
-  // as a placeholder, allowing any combination of arguments to be pre-filled.
-  _.partial = function(func) {
-    var boundArgs = slice.call(arguments, 1);
-    var bound = function() {
-      var position = 0, length = boundArgs.length;
-      var args = Array(length);
-      for (var i = 0; i < length; i++) {
-        args[i] = boundArgs[i] === _ ? arguments[position++] : boundArgs[i];
-      }
-      while (position < arguments.length) args.push(arguments[position++]);
-      return executeBound(func, bound, this, this, args);
-    };
-    return bound;
-  };
-
-  // Bind a number of an object's methods to that object. Remaining arguments
-  // are the method names to be bound. Useful for ensuring that all callbacks
-  // defined on an object belong to it.
-  _.bindAll = function(obj) {
-    var i, length = arguments.length, key;
-    if (length <= 1) throw new Error('bindAll must be passed function names');
-    for (i = 1; i < length; i++) {
-      key = arguments[i];
-      obj[key] = _.bind(obj[key], obj);
-    }
-    return obj;
-  };
-
-  // Memoize an expensive function by storing its results.
-  _.memoize = function(func, hasher) {
-    var memoize = function(key) {
-      var cache = memoize.cache;
-      var address = '' + (hasher ? hasher.apply(this, arguments) : key);
-      if (!_.has(cache, address)) cache[address] = func.apply(this, arguments);
-      return cache[address];
-    };
-    memoize.cache = {};
-    return memoize;
-  };
-
-  // Delays a function for the given number of milliseconds, and then calls
-  // it with the arguments supplied.
-  _.delay = function(func, wait) {
-    var args = slice.call(arguments, 2);
-    return setTimeout(function(){
-      return func.apply(null, args);
-    }, wait);
-  };
-
-  // Defers a function, scheduling it to run after the current call stack has
-  // cleared.
-  _.defer = _.partial(_.delay, _, 1);
-
-  // Returns a function, that, when invoked, will only be triggered at most once
-  // during a given window of time. Normally, the throttled function will run
-  // as much as it can, without ever going more than once per `wait` duration;
-  // but if you'd like to disable the execution on the leading edge, pass
-  // `{leading: false}`. To disable execution on the trailing edge, ditto.
-  _.throttle = function(func, wait, options) {
-    var context, args, result;
-    var timeout = null;
-    var previous = 0;
-    if (!options) options = {};
-    var later = function() {
-      previous = options.leading === false ? 0 : _.now();
-      timeout = null;
-      result = func.apply(context, args);
-      if (!timeout) context = args = null;
-    };
-    return function() {
-      var now = _.now();
-      if (!previous && options.leading === false) previous = now;
-      var remaining = wait - (now - previous);
-      context = this;
-      args = arguments;
-      if (remaining <= 0 || remaining > wait) {
-        if (timeout) {
-          clearTimeout(timeout);
-          timeout = null;
-        }
-        previous = now;
-        result = func.apply(context, args);
-        if (!timeout) context = args = null;
-      } else if (!timeout && options.trailing !== false) {
-        timeout = setTimeout(later, remaining);
-      }
-      return result;
-    };
-  };
-
-  // Returns a function, that, as long as it continues to be invoked, will not
-  // be triggered. The function will be called after it stops being called for
-  // N milliseconds. If `immediate` is passed, trigger the function on the
-  // leading edge, instead of the trailing.
-  _.debounce = function(func, wait, immediate) {
-    var timeout, args, context, timestamp, result;
-
-    var later = function() {
-      var last = _.now() - timestamp;
-
-      if (last < wait && last >= 0) {
-        timeout = setTimeout(later, wait - last);
-      } else {
-        timeout = null;
-        if (!immediate) {
-          result = func.apply(context, args);
-          if (!timeout) context = args = null;
-        }
-      }
-    };
-
-    return function() {
-      context = this;
-      args = arguments;
-      timestamp = _.now();
-      var callNow = immediate && !timeout;
-      if (!timeout) timeout = setTimeout(later, wait);
-      if (callNow) {
-        result = func.apply(context, args);
-        context = args = null;
-      }
-
-      return result;
-    };
-  };
-
-  // Returns the first function passed as an argument to the second,
-  // allowing you to adjust arguments, run code before and after, and
-  // conditionally execute the original function.
-  _.wrap = function(func, wrapper) {
-    return _.partial(wrapper, func);
-  };
-
-  // Returns a negated version of the passed-in predicate.
-  _.negate = function(predicate) {
-    return function() {
-      return !predicate.apply(this, arguments);
-    };
-  };
-
-  // Returns a function that is the composition of a list of functions, each
-  // consuming the return value of the function that follows.
-  _.compose = function() {
-    var args = arguments;
-    var start = args.length - 1;
-    return function() {
-      var i = start;
-      var result = args[start].apply(this, arguments);
-      while (i--) result = args[i].call(this, result);
-      return result;
-    };
-  };
-
-  // Returns a function that will only be executed on and after the Nth call.
-  _.after = function(times, func) {
-    return function() {
-      if (--times < 1) {
-        return func.apply(this, arguments);
-      }
-    };
-  };
-
-  // Returns a function that will only be executed up to (but not including) the Nth call.
-  _.before = function(times, func) {
-    var memo;
-    return function() {
-      if (--times > 0) {
-        memo = func.apply(this, arguments);
-      }
-      if (times <= 1) func = null;
-      return memo;
-    };
-  };
-
-  // Returns a function that will be executed at most one time, no matter how
-  // often you call it. Useful for lazy initialization.
-  _.once = _.partial(_.before, 2);
-
-  // Object Functions
-  // ----------------
-
-  // Keys in IE < 9 that won't be iterated by `for key in ...` and thus missed.
-  var hasEnumBug = !{toString: null}.propertyIsEnumerable('toString');
-  var nonEnumerableProps = ['valueOf', 'isPrototypeOf', 'toString',
-                      'propertyIsEnumerable', 'hasOwnProperty', 'toLocaleString'];
-
-  function collectNonEnumProps(obj, keys) {
-    var nonEnumIdx = nonEnumerableProps.length;
-    var constructor = obj.constructor;
-    var proto = (_.isFunction(constructor) && constructor.prototype) || ObjProto;
-
-    // Constructor is a special case.
-    var prop = 'constructor';
-    if (_.has(obj, prop) && !_.contains(keys, prop)) keys.push(prop);
-
-    while (nonEnumIdx--) {
-      prop = nonEnumerableProps[nonEnumIdx];
-      if (prop in obj && obj[prop] !== proto[prop] && !_.contains(keys, prop)) {
-        keys.push(prop);
-      }
-    }
-  }
-
-  // Retrieve the names of an object's own properties.
-  // Delegates to **ECMAScript 5**'s native `Object.keys`
-  _.keys = function(obj) {
-    if (!_.isObject(obj)) return [];
-    if (nativeKeys) return nativeKeys(obj);
-    var keys = [];
-    for (var key in obj) if (_.has(obj, key)) keys.push(key);
-    // Ahem, IE < 9.
-    if (hasEnumBug) collectNonEnumProps(obj, keys);
-    return keys;
-  };
-
-  // Retrieve all the property names of an object.
-  _.allKeys = function(obj) {
-    if (!_.isObject(obj)) return [];
-    var keys = [];
-    for (var key in obj) keys.push(key);
-    // Ahem, IE < 9.
-    if (hasEnumBug) collectNonEnumProps(obj, keys);
-    return keys;
-  };
-
-  // Retrieve the values of an object's properties.
-  _.values = function(obj) {
-    var keys = _.keys(obj);
-    var length = keys.length;
-    var values = Array(length);
-    for (var i = 0; i < length; i++) {
-      values[i] = obj[keys[i]];
-    }
-    return values;
-  };
-
-  // Returns the results of applying the iteratee to each element of the object
-  // In contrast to _.map it returns an object
-  _.mapObject = function(obj, iteratee, context) {
-    iteratee = cb(iteratee, context);
-    var keys =  _.keys(obj),
-          length = keys.length,
-          results = {},
-          currentKey;
-      for (var index = 0; index < length; index++) {
-        currentKey = keys[index];
-        results[currentKey] = iteratee(obj[currentKey], currentKey, obj);
-      }
-      return results;
-  };
-
-  // Convert an object into a list of `[key, value]` pairs.
-  _.pairs = function(obj) {
-    var keys = _.keys(obj);
-    var length = keys.length;
-    var pairs = Array(length);
-    for (var i = 0; i < length; i++) {
-      pairs[i] = [keys[i], obj[keys[i]]];
-    }
-    return pairs;
-  };
-
-  // Invert the keys and values of an object. The values must be serializable.
-  _.invert = function(obj) {
-    var result = {};
-    var keys = _.keys(obj);
-    for (var i = 0, length = keys.length; i < length; i++) {
-      result[obj[keys[i]]] = keys[i];
-    }
-    return result;
-  };
-
-  // Return a sorted list of the function names available on the object.
-  // Aliased as `methods`
-  _.functions = _.methods = function(obj) {
-    var names = [];
-    for (var key in obj) {
-      if (_.isFunction(obj[key])) names.push(key);
-    }
-    return names.sort();
-  };
-
-  // Extend a given object with all the properties in passed-in object(s).
-  _.extend = createAssigner(_.allKeys);
-
-  // Assigns a given object with all the own properties in the passed-in object(s)
-  // (https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Object/assign)
-  _.extendOwn = _.assign = createAssigner(_.keys);
-
-  // Returns the first key on an object that passes a predicate test
-  _.findKey = function(obj, predicate, context) {
-    predicate = cb(predicate, context);
-    var keys = _.keys(obj), key;
-    for (var i = 0, length = keys.length; i < length; i++) {
-      key = keys[i];
-      if (predicate(obj[key], key, obj)) return key;
-    }
-  };
-
-  // Return a copy of the object only containing the whitelisted properties.
-  _.pick = function(object, oiteratee, context) {
-    var result = {}, obj = object, iteratee, keys;
-    if (obj == null) return result;
-    if (_.isFunction(oiteratee)) {
-      keys = _.allKeys(obj);
-      iteratee = optimizeCb(oiteratee, context);
-    } else {
-      keys = flatten(arguments, false, false, 1);
-      iteratee = function(value, key, obj) { return key in obj; };
-      obj = Object(obj);
-    }
-    for (var i = 0, length = keys.length; i < length; i++) {
-      var key = keys[i];
-      var value = obj[key];
-      if (iteratee(value, key, obj)) result[key] = value;
-    }
-    return result;
-  };
-
-   // Return a copy of the object without the blacklisted properties.
-  _.omit = function(obj, iteratee, context) {
-    if (_.isFunction(iteratee)) {
-      iteratee = _.negate(iteratee);
-    } else {
-      var keys = _.map(flatten(arguments, false, false, 1), String);
-      iteratee = function(value, key) {
-        return !_.contains(keys, key);
-      };
-    }
-    return _.pick(obj, iteratee, context);
-  };
-
-  // Fill in a given object with default properties.
-  _.defaults = createAssigner(_.allKeys, true);
-
-  // Creates an object that inherits from the given prototype object.
-  // If additional properties are provided then they will be added to the
-  // created object.
-  _.create = function(prototype, props) {
-    var result = baseCreate(prototype);
-    if (props) _.extendOwn(result, props);
-    return result;
-  };
-
-  // Create a (shallow-cloned) duplicate of an object.
-  _.clone = function(obj) {
-    if (!_.isObject(obj)) return obj;
-    return _.isArray(obj) ? obj.slice() : _.extend({}, obj);
-  };
-
-  // Invokes interceptor with the obj, and then returns obj.
-  // The primary purpose of this method is to "tap into" a method chain, in
-  // order to perform operations on intermediate results within the chain.
-  _.tap = function(obj, interceptor) {
-    interceptor(obj);
-    return obj;
-  };
-
-  // Returns whether an object has a given set of `key:value` pairs.
-  _.isMatch = function(object, attrs) {
-    var keys = _.keys(attrs), length = keys.length;
-    if (object == null) return !length;
-    var obj = Object(object);
-    for (var i = 0; i < length; i++) {
-      var key = keys[i];
-      if (attrs[key] !== obj[key] || !(key in obj)) return false;
-    }
-    return true;
-  };
-
-
-  // Internal recursive comparison function for `isEqual`.
-  var eq = function(a, b, aStack, bStack) {
-    // Identical objects are equal. `0 === -0`, but they aren't identical.
-    // See the [Harmony `egal` proposal](http://wiki.ecmascript.org/doku.php?id=harmony:egal).
-    if (a === b) return a !== 0 || 1 / a === 1 / b;
-    // A strict comparison is necessary because `null == undefined`.
-    if (a == null || b == null) return a === b;
-    // Unwrap any wrapped objects.
-    if (a instanceof _) a = a._wrapped;
-    if (b instanceof _) b = b._wrapped;
-    // Compare `[[Class]]` names.
-    var className = toString.call(a);
-    if (className !== toString.call(b)) return false;
-    switch (className) {
-      // Strings, numbers, regular expressions, dates, and booleans are compared by value.
-      case '[object RegExp]':
-      // RegExps are coerced to strings for comparison (Note: '' + /a/i === '/a/i')
-      case '[object String]':
-        // Primitives and their corresponding object wrappers are equivalent; thus, `"5"` is
-        // equivalent to `new String("5")`.
-        return '' + a === '' + b;
-      case '[object Number]':
-        // `NaN`s are equivalent, but non-reflexive.
-        // Object(NaN) is equivalent to NaN
-        if (+a !== +a) return +b !== +b;
-        // An `egal` comparison is performed for other numeric values.
-        return +a === 0 ? 1 / +a === 1 / b : +a === +b;
-      case '[object Date]':
-      case '[object Boolean]':
-        // Coerce dates and booleans to numeric primitive values. Dates are compared by their
-        // millisecond representations. Note that invalid dates with millisecond representations
-        // of `NaN` are not equivalent.
-        return +a === +b;
-    }
-
-    var areArrays = className === '[object Array]';
-    if (!areArrays) {
-      if (typeof a != 'object' || typeof b != 'object') return false;
-
-      // Objects with different constructors are not equivalent, but `Object`s or `Array`s
-      // from different frames are.
-      var aCtor = a.constructor, bCtor = b.constructor;
-      if (aCtor !== bCtor && !(_.isFunction(aCtor) && aCtor instanceof aCtor &&
-                               _.isFunction(bCtor) && bCtor instanceof bCtor)
-                          && ('constructor' in a && 'constructor' in b)) {
-        return false;
-      }
-    }
-    // Assume equality for cyclic structures. The algorithm for detecting cyclic
-    // structures is adapted from ES 5.1 section 15.12.3, abstract operation `JO`.
-
-    // Initializing stack of traversed objects.
-    // It's done here since we only need them for objects and arrays comparison.
-    aStack = aStack || [];
-    bStack = bStack || [];
-    var length = aStack.length;
-    while (length--) {
-      // Linear search. Performance is inversely proportional to the number of
-      // unique nested structures.
-      if (aStack[length] === a) return bStack[length] === b;
-    }
-
-    // Add the first object to the stack of traversed objects.
-    aStack.push(a);
-    bStack.push(b);
-
-    // Recursively compare objects and arrays.
-    if (areArrays) {
-      // Compare array lengths to determine if a deep comparison is necessary.
-      length = a.length;
-      if (length !== b.length) return false;
-      // Deep compare the contents, ignoring non-numeric properties.
-      while (length--) {
-        if (!eq(a[length], b[length], aStack, bStack)) return false;
-      }
-    } else {
-      // Deep compare objects.
-      var keys = _.keys(a), key;
-      length = keys.length;
-      // Ensure that both objects contain the same number of properties before comparing deep equality.
-      if (_.keys(b).length !== length) return false;
-      while (length--) {
-        // Deep compare each member
-        key = keys[length];
-        if (!(_.has(b, key) && eq(a[key], b[key], aStack, bStack))) return false;
-      }
-    }
-    // Remove the first object from the stack of traversed objects.
-    aStack.pop();
-    bStack.pop();
-    return true;
-  };
-
-  // Perform a deep comparison to check if two objects are equal.
-  _.isEqual = function(a, b) {
-    return eq(a, b);
-  };
-
-  // Is a given array, string, or object empty?
-  // An "empty" object has no enumerable own-properties.
-  _.isEmpty = function(obj) {
-    if (obj == null) return true;
-    if (isArrayLike(obj) && (_.isArray(obj) || _.isString(obj) || _.isArguments(obj))) return obj.length === 0;
-    return _.keys(obj).length === 0;
-  };
-
-  // Is a given value a DOM element?
-  _.isElement = function(obj) {
-    return !!(obj && obj.nodeType === 1);
-  };
-
-  // Is a given value an array?
-  // Delegates to ECMA5's native Array.isArray
-  _.isArray = nativeIsArray || function(obj) {
-    return toString.call(obj) === '[object Array]';
-  };
-
-  // Is a given variable an object?
-  _.isObject = function(obj) {
-    var type = typeof obj;
-    return type === 'function' || type === 'object' && !!obj;
-  };
-
-  // Add some isType methods: isArguments, isFunction, isString, isNumber, isDate, isRegExp, isError.
-  _.each(['Arguments', 'Function', 'String', 'Number', 'Date', 'RegExp', 'Error'], function(name) {
-    _['is' + name] = function(obj) {
-      return toString.call(obj) === '[object ' + name + ']';
-    };
-  });
-
-  // Define a fallback version of the method in browsers (ahem, IE < 9), where
-  // there isn't any inspectable "Arguments" type.
-  if (!_.isArguments(arguments)) {
-    _.isArguments = function(obj) {
-      return _.has(obj, 'callee');
-    };
-  }
-
-  // Optimize `isFunction` if appropriate. Work around some typeof bugs in old v8,
-  // IE 11 (#1621), and in Safari 8 (#1929).
-  if (typeof /./ != 'function' && typeof Int8Array != 'object') {
-    _.isFunction = function(obj) {
-      return typeof obj == 'function' || false;
-    };
-  }
-
-  // Is a given object a finite number?
-  _.isFinite = function(obj) {
-    return isFinite(obj) && !isNaN(parseFloat(obj));
-  };
-
-  // Is the given value `NaN`? (NaN is the only number which does not equal itself).
-  _.isNaN = function(obj) {
-    return _.isNumber(obj) && obj !== +obj;
-  };
-
-  // Is a given value a boolean?
-  _.isBoolean = function(obj) {
-    return obj === true || obj === false || toString.call(obj) === '[object Boolean]';
-  };
-
-  // Is a given value equal to null?
-  _.isNull = function(obj) {
-    return obj === null;
-  };
-
-  // Is a given variable undefined?
-  _.isUndefined = function(obj) {
-    return obj === void 0;
-  };
-
-  // Shortcut function for checking if an object has a given property directly
-  // on itself (in other words, not on a prototype).
-  _.has = function(obj, key) {
-    return obj != null && hasOwnProperty.call(obj, key);
-  };
-
-  // Utility Functions
-  // -----------------
-
-  // Run Underscore.js in *noConflict* mode, returning the `_` variable to its
-  // previous owner. Returns a reference to the Underscore object.
-  _.noConflict = function() {
-    root._ = previousUnderscore;
-    return this;
-  };
-
-  // Keep the identity function around for default iteratees.
-  _.identity = function(value) {
-    return value;
-  };
-
-  // Predicate-generating functions. Often useful outside of Underscore.
-  _.constant = function(value) {
-    return function() {
-      return value;
-    };
-  };
-
-  _.noop = function(){};
-
-  _.property = property;
-
-  // Generates a function for a given object that returns a given property.
-  _.propertyOf = function(obj) {
-    return obj == null ? function(){} : function(key) {
-      return obj[key];
-    };
-  };
-
-  // Returns a predicate for checking whether an object has a given set of
-  // `key:value` pairs.
-  _.matcher = _.matches = function(attrs) {
-    attrs = _.extendOwn({}, attrs);
-    return function(obj) {
-      return _.isMatch(obj, attrs);
-    };
-  };
-
-  // Run a function **n** times.
-  _.times = function(n, iteratee, context) {
-    var accum = Array(Math.max(0, n));
-    iteratee = optimizeCb(iteratee, context, 1);
-    for (var i = 0; i < n; i++) accum[i] = iteratee(i);
-    return accum;
-  };
-
-  // Return a random integer between min and max (inclusive).
-  _.random = function(min, max) {
-    if (max == null) {
-      max = min;
-      min = 0;
-    }
-    return min + Math.floor(Math.random() * (max - min + 1));
-  };
-
-  // A (possibly faster) way to get the current timestamp as an integer.
-  _.now = Date.now || function() {
-    return new Date().getTime();
-  };
-
-   // List of HTML entities for escaping.
-  var escapeMap = {
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#x27;',
-    '`': '&#x60;'
-  };
-  var unescapeMap = _.invert(escapeMap);
-
-  // Functions for escaping and unescaping strings to/from HTML interpolation.
-  var createEscaper = function(map) {
-    var escaper = function(match) {
-      return map[match];
-    };
-    // Regexes for identifying a key that needs to be escaped
-    var source = '(?:' + _.keys(map).join('|') + ')';
-    var testRegexp = RegExp(source);
-    var replaceRegexp = RegExp(source, 'g');
-    return function(string) {
-      string = string == null ? '' : '' + string;
-      return testRegexp.test(string) ? string.replace(replaceRegexp, escaper) : string;
-    };
-  };
-  _.escape = createEscaper(escapeMap);
-  _.unescape = createEscaper(unescapeMap);
-
-  // If the value of the named `property` is a function then invoke it with the
-  // `object` as context; otherwise, return it.
-  _.result = function(object, property, fallback) {
-    var value = object == null ? void 0 : object[property];
-    if (value === void 0) {
-      value = fallback;
-    }
-    return _.isFunction(value) ? value.call(object) : value;
-  };
-
-  // Generate a unique integer id (unique within the entire client session).
-  // Useful for temporary DOM ids.
-  var idCounter = 0;
-  _.uniqueId = function(prefix) {
-    var id = ++idCounter + '';
-    return prefix ? prefix + id : id;
-  };
-
-  // By default, Underscore uses ERB-style template delimiters, change the
-  // following template settings to use alternative delimiters.
-  _.templateSettings = {
-    evaluate    : /<%([\s\S]+?)%>/g,
-    interpolate : /<%=([\s\S]+?)%>/g,
-    escape      : /<%-([\s\S]+?)%>/g
-  };
-
-  // When customizing `templateSettings`, if you don't want to define an
-  // interpolation, evaluation or escaping regex, we need one that is
-  // guaranteed not to match.
-  var noMatch = /(.)^/;
-
-  // Certain characters need to be escaped so that they can be put into a
-  // string literal.
-  var escapes = {
-    "'":      "'",
-    '\\':     '\\',
-    '\r':     'r',
-    '\n':     'n',
-    '\u2028': 'u2028',
-    '\u2029': 'u2029'
-  };
-
-  var escaper = /\\|'|\r|\n|\u2028|\u2029/g;
-
-  var escapeChar = function(match) {
-    return '\\' + escapes[match];
-  };
-
-  // JavaScript micro-templating, similar to John Resig's implementation.
-  // Underscore templating handles arbitrary delimiters, preserves whitespace,
-  // and correctly escapes quotes within interpolated code.
-  // NB: `oldSettings` only exists for backwards compatibility.
-  _.template = function(text, settings, oldSettings) {
-    if (!settings && oldSettings) settings = oldSettings;
-    settings = _.defaults({}, settings, _.templateSettings);
-
-    // Combine delimiters into one regular expression via alternation.
-    var matcher = RegExp([
-      (settings.escape || noMatch).source,
-      (settings.interpolate || noMatch).source,
-      (settings.evaluate || noMatch).source
-    ].join('|') + '|$', 'g');
-
-    // Compile the template source, escaping string literals appropriately.
-    var index = 0;
-    var source = "__p+='";
-    text.replace(matcher, function(match, escape, interpolate, evaluate, offset) {
-      source += text.slice(index, offset).replace(escaper, escapeChar);
-      index = offset + match.length;
-
-      if (escape) {
-        source += "'+\n((__t=(" + escape + "))==null?'':_.escape(__t))+\n'";
-      } else if (interpolate) {
-        source += "'+\n((__t=(" + interpolate + "))==null?'':__t)+\n'";
-      } else if (evaluate) {
-        source += "';\n" + evaluate + "\n__p+='";
-      }
-
-      // Adobe VMs need the match returned to produce the correct offest.
-      return match;
-    });
-    source += "';\n";
-
-    // If a variable is not specified, place data values in local scope.
-    if (!settings.variable) source = 'with(obj||{}){\n' + source + '}\n';
-
-    source = "var __t,__p='',__j=Array.prototype.join," +
-      "print=function(){__p+=__j.call(arguments,'');};\n" +
-      source + 'return __p;\n';
-
-    try {
-      var render = new Function(settings.variable || 'obj', '_', source);
-    } catch (e) {
-      e.source = source;
-      throw e;
-    }
-
-    var template = function(data) {
-      return render.call(this, data, _);
-    };
-
-    // Provide the compiled source as a convenience for precompilation.
-    var argument = settings.variable || 'obj';
-    template.source = 'function(' + argument + '){\n' + source + '}';
-
-    return template;
-  };
-
-  // Add a "chain" function. Start chaining a wrapped Underscore object.
-  _.chain = function(obj) {
-    var instance = _(obj);
-    instance._chain = true;
-    return instance;
-  };
-
-  // OOP
-  // ---------------
-  // If Underscore is called as a function, it returns a wrapped object that
-  // can be used OO-style. This wrapper holds altered versions of all the
-  // underscore functions. Wrapped objects may be chained.
-
-  // Helper function to continue chaining intermediate results.
-  var result = function(instance, obj) {
-    return instance._chain ? _(obj).chain() : obj;
-  };
-
-  // Add your own custom functions to the Underscore object.
-  _.mixin = function(obj) {
-    _.each(_.functions(obj), function(name) {
-      var func = _[name] = obj[name];
-      _.prototype[name] = function() {
-        var args = [this._wrapped];
-        push.apply(args, arguments);
-        return result(this, func.apply(_, args));
-      };
-    });
-  };
-
-  // Add all of the Underscore functions to the wrapper object.
-  _.mixin(_);
-
-  // Add all mutator Array functions to the wrapper.
-  _.each(['pop', 'push', 'reverse', 'shift', 'sort', 'splice', 'unshift'], function(name) {
-    var method = ArrayProto[name];
-    _.prototype[name] = function() {
-      var obj = this._wrapped;
-      method.apply(obj, arguments);
-      if ((name === 'shift' || name === 'splice') && obj.length === 0) delete obj[0];
-      return result(this, obj);
-    };
-  });
-
-  // Add all accessor Array functions to the wrapper.
-  _.each(['concat', 'join', 'slice'], function(name) {
-    var method = ArrayProto[name];
-    _.prototype[name] = function() {
-      return result(this, method.apply(this._wrapped, arguments));
-    };
-  });
-
-  // Extracts the result from a wrapped and chained object.
-  _.prototype.value = function() {
-    return this._wrapped;
-  };
-
-  // Provide unwrapping proxy for some methods used in engine operations
-  // such as arithmetic and JSON stringification.
-  _.prototype.valueOf = _.prototype.toJSON = _.prototype.value;
-
-  _.prototype.toString = function() {
-    return '' + this._wrapped;
-  };
-
-  // AMD registration happens at the end for compatibility with AMD loaders
-  // that may not enforce next-turn semantics on modules. Even though general
-  // practice for AMD registration is to be anonymous, underscore registers
-  // as a named module because, like jQuery, it is a base library that is
-  // popular enough to be bundled in a third party lib, but not be part of
-  // an AMD load request. Those cases could generate an error when an
-  // anonymous define() is called outside of a loader request.
-  if (typeof define === 'function' && define.amd) {
-    define('underscore', [], function() {
-      return _;
-    });
-  }
-}.call(this));
-
-},{}],"/home/stahl/duino/CocoTeens7/Wav2SketchJS/node_modules/base64-js/lib/b64.js":[function(require,module,exports){
+},{"jquery":"/home/stahl/duino/CocoTeens7/Wav2SketchJS/node_modules/jquery/dist/jquery.js","underscore":"/home/stahl/duino/CocoTeens7/Wav2SketchJS/node_modules/underscore/underscore.js"}],"/home/stahl/duino/CocoTeens7/Wav2SketchJS/node_modules/base64-js/index.js":[function(require,module,exports){
 'use strict'
 
+exports.byteLength = byteLength
 exports.toByteArray = toByteArray
 exports.fromByteArray = fromByteArray
 
@@ -3742,23 +2193,17 @@ var lookup = []
 var revLookup = []
 var Arr = typeof Uint8Array !== 'undefined' ? Uint8Array : Array
 
-function init () {
-  var code = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
-  for (var i = 0, len = code.length; i < len; ++i) {
-    lookup[i] = code[i]
-    revLookup[code.charCodeAt(i)] = i
-  }
-
-  revLookup['-'.charCodeAt(0)] = 62
-  revLookup['_'.charCodeAt(0)] = 63
+var code = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+for (var i = 0, len = code.length; i < len; ++i) {
+  lookup[i] = code[i]
+  revLookup[code.charCodeAt(i)] = i
 }
 
-init()
+revLookup['-'.charCodeAt(0)] = 62
+revLookup['_'.charCodeAt(0)] = 63
 
-function toByteArray (b64) {
-  var i, j, l, tmp, placeHolders, arr
+function placeHoldersCount (b64) {
   var len = b64.length
-
   if (len % 4 > 0) {
     throw new Error('Invalid string. Length must be a multiple of 4')
   }
@@ -3768,9 +2213,19 @@ function toByteArray (b64) {
   // represent one byte
   // if there is only one, then the three characters before it represent 2 bytes
   // this is just a cheap hack to not do indexOf twice
-  placeHolders = b64[len - 2] === '=' ? 2 : b64[len - 1] === '=' ? 1 : 0
+  return b64[len - 2] === '=' ? 2 : b64[len - 1] === '=' ? 1 : 0
+}
 
+function byteLength (b64) {
   // base64 is 4/3 + up to two characters of the original data
+  return b64.length * 3 / 4 - placeHoldersCount(b64)
+}
+
+function toByteArray (b64) {
+  var i, j, l, tmp, placeHolders, arr
+  var len = b64.length
+  placeHolders = placeHoldersCount(b64)
+
   arr = new Arr(len * 3 / 4 - placeHolders)
 
   // if there are placeholders, only get up to the last complete 4 chars
@@ -4314,7 +2769,7 @@ return dust;
   }
 }(this, function() {
   var dust = {
-        "version": "2.7.2"
+        "version": "2.7.5"
       },
       NONE = 'NONE', ERROR = 'ERROR', WARN = 'WARN', INFO = 'INFO', DEBUG = 'DEBUG',
       EMPTY_FUNC = function() {};
@@ -4622,10 +3077,15 @@ return dust;
     this.options = options;
     this.blocks = blocks;
     this.templateName = templateName;
+    this._isContext = true;
   }
 
   dust.makeBase = dust.context = function(global, options) {
     return new Context(undefined, global, options);
+  };
+
+  dust.isContext = function(obj) {
+    return typeof obj === "object" && obj._isContext === true;
   };
 
   /**
@@ -4641,7 +3101,7 @@ return dust;
   }
 
   Context.wrap = function(context, name) {
-    if (context instanceof Context) {
+    if (dust.isContext(context)) {
       return context;
     }
     return new Context(context, {}, {}, null, name);
@@ -15262,7 +13722,6 @@ return jQuery;
 
 },{}],"/home/stahl/duino/CocoTeens7/Wav2SketchJS/node_modules/process/browser.js":[function(require,module,exports){
 // shim for using process in browser
-
 var process = module.exports = {};
 
 // cached from whatever global is present so that test runners that stub it
@@ -15273,22 +13732,84 @@ var process = module.exports = {};
 var cachedSetTimeout;
 var cachedClearTimeout;
 
+function defaultSetTimout() {
+    throw new Error('setTimeout has not been defined');
+}
+function defaultClearTimeout () {
+    throw new Error('clearTimeout has not been defined');
+}
 (function () {
-  try {
-    cachedSetTimeout = setTimeout;
-  } catch (e) {
-    cachedSetTimeout = function () {
-      throw new Error('setTimeout is not defined');
+    try {
+        if (typeof setTimeout === 'function') {
+            cachedSetTimeout = setTimeout;
+        } else {
+            cachedSetTimeout = defaultSetTimout;
+        }
+    } catch (e) {
+        cachedSetTimeout = defaultSetTimout;
     }
-  }
-  try {
-    cachedClearTimeout = clearTimeout;
-  } catch (e) {
-    cachedClearTimeout = function () {
-      throw new Error('clearTimeout is not defined');
+    try {
+        if (typeof clearTimeout === 'function') {
+            cachedClearTimeout = clearTimeout;
+        } else {
+            cachedClearTimeout = defaultClearTimeout;
+        }
+    } catch (e) {
+        cachedClearTimeout = defaultClearTimeout;
     }
-  }
 } ())
+function runTimeout(fun) {
+    if (cachedSetTimeout === setTimeout) {
+        //normal enviroments in sane situations
+        return setTimeout(fun, 0);
+    }
+    // if setTimeout wasn't available but was latter defined
+    if ((cachedSetTimeout === defaultSetTimout || !cachedSetTimeout) && setTimeout) {
+        cachedSetTimeout = setTimeout;
+        return setTimeout(fun, 0);
+    }
+    try {
+        // when when somebody has screwed with setTimeout but no I.E. maddness
+        return cachedSetTimeout(fun, 0);
+    } catch(e){
+        try {
+            // When we are in I.E. but the script has been evaled so I.E. doesn't trust the global object when called normally
+            return cachedSetTimeout.call(null, fun, 0);
+        } catch(e){
+            // same as above but when it's a version of I.E. that must have the global object for 'this', hopfully our context correct otherwise it will throw a global error
+            return cachedSetTimeout.call(this, fun, 0);
+        }
+    }
+
+
+}
+function runClearTimeout(marker) {
+    if (cachedClearTimeout === clearTimeout) {
+        //normal enviroments in sane situations
+        return clearTimeout(marker);
+    }
+    // if clearTimeout wasn't available but was latter defined
+    if ((cachedClearTimeout === defaultClearTimeout || !cachedClearTimeout) && clearTimeout) {
+        cachedClearTimeout = clearTimeout;
+        return clearTimeout(marker);
+    }
+    try {
+        // when when somebody has screwed with setTimeout but no I.E. maddness
+        return cachedClearTimeout(marker);
+    } catch (e){
+        try {
+            // When we are in I.E. but the script has been evaled so I.E. doesn't  trust the global object when called normally
+            return cachedClearTimeout.call(null, marker);
+        } catch (e){
+            // same as above but when it's a version of I.E. that must have the global object for 'this', hopfully our context correct otherwise it will throw a global error.
+            // Some versions of I.E. have different rules for clearTimeout vs setTimeout
+            return cachedClearTimeout.call(this, marker);
+        }
+    }
+
+
+
+}
 var queue = [];
 var draining = false;
 var currentQueue;
@@ -15313,7 +13834,7 @@ function drainQueue() {
     if (draining) {
         return;
     }
-    var timeout = cachedSetTimeout(cleanUpNextTick);
+    var timeout = runTimeout(cleanUpNextTick);
     draining = true;
 
     var len = queue.length;
@@ -15330,7 +13851,7 @@ function drainQueue() {
     }
     currentQueue = null;
     draining = false;
-    cachedClearTimeout(timeout);
+    runClearTimeout(timeout);
 }
 
 process.nextTick = function (fun) {
@@ -15342,7 +13863,7 @@ process.nextTick = function (fun) {
     }
     queue.push(new Item(fun, args));
     if (queue.length === 1 && !draining) {
-        cachedSetTimeout(drainQueue, 0);
+        runTimeout(drainQueue);
     }
 };
 
@@ -15382,9 +13903,9 @@ process.chdir = function (dir) {
 process.umask = function() { return 0; };
 
 },{}],"/home/stahl/duino/CocoTeens7/Wav2SketchJS/node_modules/underscore/underscore.js":[function(require,module,exports){
-//     Underscore.js 1.7.0
+//     Underscore.js 1.8.3
 //     http://underscorejs.org
-//     (c) 2009-2014 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
+//     (c) 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
 //     Underscore may be freely distributed under the MIT license.
 
 (function() {
@@ -15405,7 +13926,6 @@ process.umask = function() { return 0; };
   var
     push             = ArrayProto.push,
     slice            = ArrayProto.slice,
-    concat           = ArrayProto.concat,
     toString         = ObjProto.toString,
     hasOwnProperty   = ObjProto.hasOwnProperty;
 
@@ -15414,7 +13934,11 @@ process.umask = function() { return 0; };
   var
     nativeIsArray      = Array.isArray,
     nativeKeys         = Object.keys,
-    nativeBind         = FuncProto.bind;
+    nativeBind         = FuncProto.bind,
+    nativeCreate       = Object.create;
+
+  // Naked function reference for surrogate-prototype-swapping.
+  var Ctor = function(){};
 
   // Create a safe reference to the Underscore object for use below.
   var _ = function(obj) {
@@ -15436,12 +13960,12 @@ process.umask = function() { return 0; };
   }
 
   // Current version.
-  _.VERSION = '1.7.0';
+  _.VERSION = '1.8.3';
 
   // Internal function that returns an efficient (for current engines) version
   // of the passed-in callback, to be repeatedly applied in other Underscore
   // functions.
-  var createCallback = function(func, context, argCount) {
+  var optimizeCb = function(func, context, argCount) {
     if (context === void 0) return func;
     switch (argCount == null ? 3 : argCount) {
       case 1: return function(value) {
@@ -15465,11 +13989,59 @@ process.umask = function() { return 0; };
   // A mostly-internal function to generate callbacks that can be applied
   // to each element in a collection, returning the desired result — either
   // identity, an arbitrary callback, a property matcher, or a property accessor.
-  _.iteratee = function(value, context, argCount) {
+  var cb = function(value, context, argCount) {
     if (value == null) return _.identity;
-    if (_.isFunction(value)) return createCallback(value, context, argCount);
-    if (_.isObject(value)) return _.matches(value);
+    if (_.isFunction(value)) return optimizeCb(value, context, argCount);
+    if (_.isObject(value)) return _.matcher(value);
     return _.property(value);
+  };
+  _.iteratee = function(value, context) {
+    return cb(value, context, Infinity);
+  };
+
+  // An internal function for creating assigner functions.
+  var createAssigner = function(keysFunc, undefinedOnly) {
+    return function(obj) {
+      var length = arguments.length;
+      if (length < 2 || obj == null) return obj;
+      for (var index = 1; index < length; index++) {
+        var source = arguments[index],
+            keys = keysFunc(source),
+            l = keys.length;
+        for (var i = 0; i < l; i++) {
+          var key = keys[i];
+          if (!undefinedOnly || obj[key] === void 0) obj[key] = source[key];
+        }
+      }
+      return obj;
+    };
+  };
+
+  // An internal function for creating a new object that inherits from another.
+  var baseCreate = function(prototype) {
+    if (!_.isObject(prototype)) return {};
+    if (nativeCreate) return nativeCreate(prototype);
+    Ctor.prototype = prototype;
+    var result = new Ctor;
+    Ctor.prototype = null;
+    return result;
+  };
+
+  var property = function(key) {
+    return function(obj) {
+      return obj == null ? void 0 : obj[key];
+    };
+  };
+
+  // Helper for collection methods to determine whether a collection
+  // should be iterated as an array or as an object
+  // Related: http://people.mozilla.org/~jorendorff/es6-draft.html#sec-tolength
+  // Avoids a very nasty iOS 8 JIT bug on ARM-64. #2094
+  var MAX_ARRAY_INDEX = Math.pow(2, 53) - 1;
+  var getLength = property('length');
+  var isArrayLike = function(collection) {
+    var length = getLength(collection);
+    return typeof length == 'number' && length >= 0 && length <= MAX_ARRAY_INDEX;
   };
 
   // Collection Functions
@@ -15479,11 +14051,10 @@ process.umask = function() { return 0; };
   // Handles raw objects in addition to array-likes. Treats all
   // sparse array-likes as if they were dense.
   _.each = _.forEach = function(obj, iteratee, context) {
-    if (obj == null) return obj;
-    iteratee = createCallback(iteratee, context);
-    var i, length = obj.length;
-    if (length === +length) {
-      for (i = 0; i < length; i++) {
+    iteratee = optimizeCb(iteratee, context);
+    var i, length;
+    if (isArrayLike(obj)) {
+      for (i = 0, length = obj.length; i < length; i++) {
         iteratee(obj[i], i, obj);
       }
     } else {
@@ -15497,77 +14068,66 @@ process.umask = function() { return 0; };
 
   // Return the results of applying the iteratee to each element.
   _.map = _.collect = function(obj, iteratee, context) {
-    if (obj == null) return [];
-    iteratee = _.iteratee(iteratee, context);
-    var keys = obj.length !== +obj.length && _.keys(obj),
+    iteratee = cb(iteratee, context);
+    var keys = !isArrayLike(obj) && _.keys(obj),
         length = (keys || obj).length,
-        results = Array(length),
-        currentKey;
+        results = Array(length);
     for (var index = 0; index < length; index++) {
-      currentKey = keys ? keys[index] : index;
+      var currentKey = keys ? keys[index] : index;
       results[index] = iteratee(obj[currentKey], currentKey, obj);
     }
     return results;
   };
 
-  var reduceError = 'Reduce of empty array with no initial value';
+  // Create a reducing function iterating left or right.
+  function createReduce(dir) {
+    // Optimized iterator function as using arguments.length
+    // in the main function will deoptimize the, see #1991.
+    function iterator(obj, iteratee, memo, keys, index, length) {
+      for (; index >= 0 && index < length; index += dir) {
+        var currentKey = keys ? keys[index] : index;
+        memo = iteratee(memo, obj[currentKey], currentKey, obj);
+      }
+      return memo;
+    }
+
+    return function(obj, iteratee, memo, context) {
+      iteratee = optimizeCb(iteratee, context, 4);
+      var keys = !isArrayLike(obj) && _.keys(obj),
+          length = (keys || obj).length,
+          index = dir > 0 ? 0 : length - 1;
+      // Determine the initial value if none is provided.
+      if (arguments.length < 3) {
+        memo = obj[keys ? keys[index] : index];
+        index += dir;
+      }
+      return iterator(obj, iteratee, memo, keys, index, length);
+    };
+  }
 
   // **Reduce** builds up a single result from a list of values, aka `inject`,
   // or `foldl`.
-  _.reduce = _.foldl = _.inject = function(obj, iteratee, memo, context) {
-    if (obj == null) obj = [];
-    iteratee = createCallback(iteratee, context, 4);
-    var keys = obj.length !== +obj.length && _.keys(obj),
-        length = (keys || obj).length,
-        index = 0, currentKey;
-    if (arguments.length < 3) {
-      if (!length) throw new TypeError(reduceError);
-      memo = obj[keys ? keys[index++] : index++];
-    }
-    for (; index < length; index++) {
-      currentKey = keys ? keys[index] : index;
-      memo = iteratee(memo, obj[currentKey], currentKey, obj);
-    }
-    return memo;
-  };
+  _.reduce = _.foldl = _.inject = createReduce(1);
 
   // The right-associative version of reduce, also known as `foldr`.
-  _.reduceRight = _.foldr = function(obj, iteratee, memo, context) {
-    if (obj == null) obj = [];
-    iteratee = createCallback(iteratee, context, 4);
-    var keys = obj.length !== + obj.length && _.keys(obj),
-        index = (keys || obj).length,
-        currentKey;
-    if (arguments.length < 3) {
-      if (!index) throw new TypeError(reduceError);
-      memo = obj[keys ? keys[--index] : --index];
-    }
-    while (index--) {
-      currentKey = keys ? keys[index] : index;
-      memo = iteratee(memo, obj[currentKey], currentKey, obj);
-    }
-    return memo;
-  };
+  _.reduceRight = _.foldr = createReduce(-1);
 
   // Return the first value which passes a truth test. Aliased as `detect`.
   _.find = _.detect = function(obj, predicate, context) {
-    var result;
-    predicate = _.iteratee(predicate, context);
-    _.some(obj, function(value, index, list) {
-      if (predicate(value, index, list)) {
-        result = value;
-        return true;
-      }
-    });
-    return result;
+    var key;
+    if (isArrayLike(obj)) {
+      key = _.findIndex(obj, predicate, context);
+    } else {
+      key = _.findKey(obj, predicate, context);
+    }
+    if (key !== void 0 && key !== -1) return obj[key];
   };
 
   // Return all the elements that pass a truth test.
   // Aliased as `select`.
   _.filter = _.select = function(obj, predicate, context) {
     var results = [];
-    if (obj == null) return results;
-    predicate = _.iteratee(predicate, context);
+    predicate = cb(predicate, context);
     _.each(obj, function(value, index, list) {
       if (predicate(value, index, list)) results.push(value);
     });
@@ -15576,19 +14136,17 @@ process.umask = function() { return 0; };
 
   // Return all the elements for which a truth test fails.
   _.reject = function(obj, predicate, context) {
-    return _.filter(obj, _.negate(_.iteratee(predicate)), context);
+    return _.filter(obj, _.negate(cb(predicate)), context);
   };
 
   // Determine whether all of the elements match a truth test.
   // Aliased as `all`.
   _.every = _.all = function(obj, predicate, context) {
-    if (obj == null) return true;
-    predicate = _.iteratee(predicate, context);
-    var keys = obj.length !== +obj.length && _.keys(obj),
-        length = (keys || obj).length,
-        index, currentKey;
-    for (index = 0; index < length; index++) {
-      currentKey = keys ? keys[index] : index;
+    predicate = cb(predicate, context);
+    var keys = !isArrayLike(obj) && _.keys(obj),
+        length = (keys || obj).length;
+    for (var index = 0; index < length; index++) {
+      var currentKey = keys ? keys[index] : index;
       if (!predicate(obj[currentKey], currentKey, obj)) return false;
     }
     return true;
@@ -15597,24 +14155,22 @@ process.umask = function() { return 0; };
   // Determine if at least one element in the object matches a truth test.
   // Aliased as `any`.
   _.some = _.any = function(obj, predicate, context) {
-    if (obj == null) return false;
-    predicate = _.iteratee(predicate, context);
-    var keys = obj.length !== +obj.length && _.keys(obj),
-        length = (keys || obj).length,
-        index, currentKey;
-    for (index = 0; index < length; index++) {
-      currentKey = keys ? keys[index] : index;
+    predicate = cb(predicate, context);
+    var keys = !isArrayLike(obj) && _.keys(obj),
+        length = (keys || obj).length;
+    for (var index = 0; index < length; index++) {
+      var currentKey = keys ? keys[index] : index;
       if (predicate(obj[currentKey], currentKey, obj)) return true;
     }
     return false;
   };
 
-  // Determine if the array or object contains a given value (using `===`).
-  // Aliased as `include`.
-  _.contains = _.include = function(obj, target) {
-    if (obj == null) return false;
-    if (obj.length !== +obj.length) obj = _.values(obj);
-    return _.indexOf(obj, target) >= 0;
+  // Determine if the array or object contains a given item (using `===`).
+  // Aliased as `includes` and `include`.
+  _.contains = _.includes = _.include = function(obj, item, fromIndex, guard) {
+    if (!isArrayLike(obj)) obj = _.values(obj);
+    if (typeof fromIndex != 'number' || guard) fromIndex = 0;
+    return _.indexOf(obj, item, fromIndex) >= 0;
   };
 
   // Invoke a method (with arguments) on every item in a collection.
@@ -15622,7 +14178,8 @@ process.umask = function() { return 0; };
     var args = slice.call(arguments, 2);
     var isFunc = _.isFunction(method);
     return _.map(obj, function(value) {
-      return (isFunc ? method : value[method]).apply(value, args);
+      var func = isFunc ? method : value[method];
+      return func == null ? func : func.apply(value, args);
     });
   };
 
@@ -15634,13 +14191,13 @@ process.umask = function() { return 0; };
   // Convenience version of a common use case of `filter`: selecting only objects
   // containing specific `key:value` pairs.
   _.where = function(obj, attrs) {
-    return _.filter(obj, _.matches(attrs));
+    return _.filter(obj, _.matcher(attrs));
   };
 
   // Convenience version of a common use case of `find`: getting the first object
   // containing specific `key:value` pairs.
   _.findWhere = function(obj, attrs) {
-    return _.find(obj, _.matches(attrs));
+    return _.find(obj, _.matcher(attrs));
   };
 
   // Return the maximum element (or element-based computation).
@@ -15648,7 +14205,7 @@ process.umask = function() { return 0; };
     var result = -Infinity, lastComputed = -Infinity,
         value, computed;
     if (iteratee == null && obj != null) {
-      obj = obj.length === +obj.length ? obj : _.values(obj);
+      obj = isArrayLike(obj) ? obj : _.values(obj);
       for (var i = 0, length = obj.length; i < length; i++) {
         value = obj[i];
         if (value > result) {
@@ -15656,7 +14213,7 @@ process.umask = function() { return 0; };
         }
       }
     } else {
-      iteratee = _.iteratee(iteratee, context);
+      iteratee = cb(iteratee, context);
       _.each(obj, function(value, index, list) {
         computed = iteratee(value, index, list);
         if (computed > lastComputed || computed === -Infinity && result === -Infinity) {
@@ -15673,7 +14230,7 @@ process.umask = function() { return 0; };
     var result = Infinity, lastComputed = Infinity,
         value, computed;
     if (iteratee == null && obj != null) {
-      obj = obj.length === +obj.length ? obj : _.values(obj);
+      obj = isArrayLike(obj) ? obj : _.values(obj);
       for (var i = 0, length = obj.length; i < length; i++) {
         value = obj[i];
         if (value < result) {
@@ -15681,7 +14238,7 @@ process.umask = function() { return 0; };
         }
       }
     } else {
-      iteratee = _.iteratee(iteratee, context);
+      iteratee = cb(iteratee, context);
       _.each(obj, function(value, index, list) {
         computed = iteratee(value, index, list);
         if (computed < lastComputed || computed === Infinity && result === Infinity) {
@@ -15696,7 +14253,7 @@ process.umask = function() { return 0; };
   // Shuffle a collection, using the modern version of the
   // [Fisher-Yates shuffle](http://en.wikipedia.org/wiki/Fisher–Yates_shuffle).
   _.shuffle = function(obj) {
-    var set = obj && obj.length === +obj.length ? obj : _.values(obj);
+    var set = isArrayLike(obj) ? obj : _.values(obj);
     var length = set.length;
     var shuffled = Array(length);
     for (var index = 0, rand; index < length; index++) {
@@ -15712,7 +14269,7 @@ process.umask = function() { return 0; };
   // The internal `guard` argument allows it to work with `map`.
   _.sample = function(obj, n, guard) {
     if (n == null || guard) {
-      if (obj.length !== +obj.length) obj = _.values(obj);
+      if (!isArrayLike(obj)) obj = _.values(obj);
       return obj[_.random(obj.length - 1)];
     }
     return _.shuffle(obj).slice(0, Math.max(0, n));
@@ -15720,7 +14277,7 @@ process.umask = function() { return 0; };
 
   // Sort the object's values by a criterion produced by an iteratee.
   _.sortBy = function(obj, iteratee, context) {
-    iteratee = _.iteratee(iteratee, context);
+    iteratee = cb(iteratee, context);
     return _.pluck(_.map(obj, function(value, index, list) {
       return {
         value: value,
@@ -15742,7 +14299,7 @@ process.umask = function() { return 0; };
   var group = function(behavior) {
     return function(obj, iteratee, context) {
       var result = {};
-      iteratee = _.iteratee(iteratee, context);
+      iteratee = cb(iteratee, context);
       _.each(obj, function(value, index) {
         var key = iteratee(value, index, obj);
         behavior(result, value, key);
@@ -15770,37 +14327,24 @@ process.umask = function() { return 0; };
     if (_.has(result, key)) result[key]++; else result[key] = 1;
   });
 
-  // Use a comparator function to figure out the smallest index at which
-  // an object should be inserted so as to maintain order. Uses binary search.
-  _.sortedIndex = function(array, obj, iteratee, context) {
-    iteratee = _.iteratee(iteratee, context, 1);
-    var value = iteratee(obj);
-    var low = 0, high = array.length;
-    while (low < high) {
-      var mid = low + high >>> 1;
-      if (iteratee(array[mid]) < value) low = mid + 1; else high = mid;
-    }
-    return low;
-  };
-
   // Safely create a real, live array from anything iterable.
   _.toArray = function(obj) {
     if (!obj) return [];
     if (_.isArray(obj)) return slice.call(obj);
-    if (obj.length === +obj.length) return _.map(obj, _.identity);
+    if (isArrayLike(obj)) return _.map(obj, _.identity);
     return _.values(obj);
   };
 
   // Return the number of elements in an object.
   _.size = function(obj) {
     if (obj == null) return 0;
-    return obj.length === +obj.length ? obj.length : _.keys(obj).length;
+    return isArrayLike(obj) ? obj.length : _.keys(obj).length;
   };
 
   // Split a collection into two arrays: one whose elements all satisfy the given
   // predicate, and one whose elements all do not satisfy the predicate.
   _.partition = function(obj, predicate, context) {
-    predicate = _.iteratee(predicate, context);
+    predicate = cb(predicate, context);
     var pass = [], fail = [];
     _.each(obj, function(value, key, obj) {
       (predicate(value, key, obj) ? pass : fail).push(value);
@@ -15817,30 +14361,27 @@ process.umask = function() { return 0; };
   _.first = _.head = _.take = function(array, n, guard) {
     if (array == null) return void 0;
     if (n == null || guard) return array[0];
-    if (n < 0) return [];
-    return slice.call(array, 0, n);
+    return _.initial(array, array.length - n);
   };
 
   // Returns everything but the last entry of the array. Especially useful on
   // the arguments object. Passing **n** will return all the values in
-  // the array, excluding the last N. The **guard** check allows it to work with
-  // `_.map`.
+  // the array, excluding the last N.
   _.initial = function(array, n, guard) {
     return slice.call(array, 0, Math.max(0, array.length - (n == null || guard ? 1 : n)));
   };
 
   // Get the last element of an array. Passing **n** will return the last N
-  // values in the array. The **guard** check allows it to work with `_.map`.
+  // values in the array.
   _.last = function(array, n, guard) {
     if (array == null) return void 0;
     if (n == null || guard) return array[array.length - 1];
-    return slice.call(array, Math.max(array.length - n, 0));
+    return _.rest(array, Math.max(0, array.length - n));
   };
 
   // Returns everything but the first entry of the array. Aliased as `tail` and `drop`.
   // Especially useful on the arguments object. Passing an **n** will return
-  // the rest N values in the array. The **guard**
-  // check allows it to work with `_.map`.
+  // the rest N values in the array.
   _.rest = _.tail = _.drop = function(array, n, guard) {
     return slice.call(array, n == null || guard ? 1 : n);
   };
@@ -15851,18 +14392,20 @@ process.umask = function() { return 0; };
   };
 
   // Internal implementation of a recursive `flatten` function.
-  var flatten = function(input, shallow, strict, output) {
-    if (shallow && _.every(input, _.isArray)) {
-      return concat.apply(output, input);
-    }
-    for (var i = 0, length = input.length; i < length; i++) {
+  var flatten = function(input, shallow, strict, startIndex) {
+    var output = [], idx = 0;
+    for (var i = startIndex || 0, length = getLength(input); i < length; i++) {
       var value = input[i];
-      if (!_.isArray(value) && !_.isArguments(value)) {
-        if (!strict) output.push(value);
-      } else if (shallow) {
-        push.apply(output, value);
-      } else {
-        flatten(value, shallow, strict, output);
+      if (isArrayLike(value) && (_.isArray(value) || _.isArguments(value))) {
+        //flatten current level of array or arguments object
+        if (!shallow) value = flatten(value, shallow, strict);
+        var j = 0, len = value.length;
+        output.length += len;
+        while (j < len) {
+          output[idx++] = value[j++];
+        }
+      } else if (!strict) {
+        output[idx++] = value;
       }
     }
     return output;
@@ -15870,7 +14413,7 @@ process.umask = function() { return 0; };
 
   // Flatten out an array, either recursively (by default), or just one level.
   _.flatten = function(array, shallow) {
-    return flatten(array, shallow, false, []);
+    return flatten(array, shallow, false);
   };
 
   // Return a version of the array that does not contain the specified value(s).
@@ -15882,27 +14425,26 @@ process.umask = function() { return 0; };
   // been sorted, you have the option of using a faster algorithm.
   // Aliased as `unique`.
   _.uniq = _.unique = function(array, isSorted, iteratee, context) {
-    if (array == null) return [];
     if (!_.isBoolean(isSorted)) {
       context = iteratee;
       iteratee = isSorted;
       isSorted = false;
     }
-    if (iteratee != null) iteratee = _.iteratee(iteratee, context);
+    if (iteratee != null) iteratee = cb(iteratee, context);
     var result = [];
     var seen = [];
-    for (var i = 0, length = array.length; i < length; i++) {
-      var value = array[i];
+    for (var i = 0, length = getLength(array); i < length; i++) {
+      var value = array[i],
+          computed = iteratee ? iteratee(value, i, array) : value;
       if (isSorted) {
-        if (!i || seen !== value) result.push(value);
-        seen = value;
+        if (!i || seen !== computed) result.push(value);
+        seen = computed;
       } else if (iteratee) {
-        var computed = iteratee(value, i, array);
-        if (_.indexOf(seen, computed) < 0) {
+        if (!_.contains(seen, computed)) {
           seen.push(computed);
           result.push(value);
         }
-      } else if (_.indexOf(result, value) < 0) {
+      } else if (!_.contains(result, value)) {
         result.push(value);
       }
     }
@@ -15912,16 +14454,15 @@ process.umask = function() { return 0; };
   // Produce an array that contains the union: each distinct element from all of
   // the passed-in arrays.
   _.union = function() {
-    return _.uniq(flatten(arguments, true, true, []));
+    return _.uniq(flatten(arguments, true, true));
   };
 
   // Produce an array that contains every item shared between all the
   // passed-in arrays.
   _.intersection = function(array) {
-    if (array == null) return [];
     var result = [];
     var argsLength = arguments.length;
-    for (var i = 0, length = array.length; i < length; i++) {
+    for (var i = 0, length = getLength(array); i < length; i++) {
       var item = array[i];
       if (_.contains(result, item)) continue;
       for (var j = 1; j < argsLength; j++) {
@@ -15935,7 +14476,7 @@ process.umask = function() { return 0; };
   // Take the difference between one array and a number of other arrays.
   // Only the elements present in just the first array will remain.
   _.difference = function(array) {
-    var rest = flatten(slice.call(arguments, 1), true, true, []);
+    var rest = flatten(arguments, true, true, 1);
     return _.filter(array, function(value){
       return !_.contains(rest, value);
     });
@@ -15943,23 +14484,28 @@ process.umask = function() { return 0; };
 
   // Zip together multiple lists into a single array -- elements that share
   // an index go together.
-  _.zip = function(array) {
-    if (array == null) return [];
-    var length = _.max(arguments, 'length').length;
-    var results = Array(length);
-    for (var i = 0; i < length; i++) {
-      results[i] = _.pluck(arguments, i);
+  _.zip = function() {
+    return _.unzip(arguments);
+  };
+
+  // Complement of _.zip. Unzip accepts an array of arrays and groups
+  // each array's elements on shared indices
+  _.unzip = function(array) {
+    var length = array && _.max(array, getLength).length || 0;
+    var result = Array(length);
+
+    for (var index = 0; index < length; index++) {
+      result[index] = _.pluck(array, index);
     }
-    return results;
+    return result;
   };
 
   // Converts lists into objects. Pass either a single array of `[key, value]`
   // pairs, or two parallel arrays of the same length -- one of keys, and one of
   // the corresponding values.
   _.object = function(list, values) {
-    if (list == null) return {};
     var result = {};
-    for (var i = 0, length = list.length; i < length; i++) {
+    for (var i = 0, length = getLength(list); i < length; i++) {
       if (values) {
         result[list[i]] = values[i];
       } else {
@@ -15969,40 +14515,73 @@ process.umask = function() { return 0; };
     return result;
   };
 
+  // Generator function to create the findIndex and findLastIndex functions
+  function createPredicateIndexFinder(dir) {
+    return function(array, predicate, context) {
+      predicate = cb(predicate, context);
+      var length = getLength(array);
+      var index = dir > 0 ? 0 : length - 1;
+      for (; index >= 0 && index < length; index += dir) {
+        if (predicate(array[index], index, array)) return index;
+      }
+      return -1;
+    };
+  }
+
+  // Returns the first index on an array-like that passes a predicate test
+  _.findIndex = createPredicateIndexFinder(1);
+  _.findLastIndex = createPredicateIndexFinder(-1);
+
+  // Use a comparator function to figure out the smallest index at which
+  // an object should be inserted so as to maintain order. Uses binary search.
+  _.sortedIndex = function(array, obj, iteratee, context) {
+    iteratee = cb(iteratee, context, 1);
+    var value = iteratee(obj);
+    var low = 0, high = getLength(array);
+    while (low < high) {
+      var mid = Math.floor((low + high) / 2);
+      if (iteratee(array[mid]) < value) low = mid + 1; else high = mid;
+    }
+    return low;
+  };
+
+  // Generator function to create the indexOf and lastIndexOf functions
+  function createIndexFinder(dir, predicateFind, sortedIndex) {
+    return function(array, item, idx) {
+      var i = 0, length = getLength(array);
+      if (typeof idx == 'number') {
+        if (dir > 0) {
+            i = idx >= 0 ? idx : Math.max(idx + length, i);
+        } else {
+            length = idx >= 0 ? Math.min(idx + 1, length) : idx + length + 1;
+        }
+      } else if (sortedIndex && idx && length) {
+        idx = sortedIndex(array, item);
+        return array[idx] === item ? idx : -1;
+      }
+      if (item !== item) {
+        idx = predicateFind(slice.call(array, i, length), _.isNaN);
+        return idx >= 0 ? idx + i : -1;
+      }
+      for (idx = dir > 0 ? i : length - 1; idx >= 0 && idx < length; idx += dir) {
+        if (array[idx] === item) return idx;
+      }
+      return -1;
+    };
+  }
+
   // Return the position of the first occurrence of an item in an array,
   // or -1 if the item is not included in the array.
   // If the array is large and already in sort order, pass `true`
   // for **isSorted** to use binary search.
-  _.indexOf = function(array, item, isSorted) {
-    if (array == null) return -1;
-    var i = 0, length = array.length;
-    if (isSorted) {
-      if (typeof isSorted == 'number') {
-        i = isSorted < 0 ? Math.max(0, length + isSorted) : isSorted;
-      } else {
-        i = _.sortedIndex(array, item);
-        return array[i] === item ? i : -1;
-      }
-    }
-    for (; i < length; i++) if (array[i] === item) return i;
-    return -1;
-  };
-
-  _.lastIndexOf = function(array, item, from) {
-    if (array == null) return -1;
-    var idx = array.length;
-    if (typeof from == 'number') {
-      idx = from < 0 ? idx + from + 1 : Math.min(idx, from + 1);
-    }
-    while (--idx >= 0) if (array[idx] === item) return idx;
-    return -1;
-  };
+  _.indexOf = createIndexFinder(1, _.findIndex, _.sortedIndex);
+  _.lastIndexOf = createIndexFinder(-1, _.findLastIndex);
 
   // Generate an integer Array containing an arithmetic progression. A port of
   // the native Python `range()` function. See
   // [the Python documentation](http://docs.python.org/library/functions.html#range).
   _.range = function(start, stop, step) {
-    if (arguments.length <= 1) {
+    if (stop == null) {
       stop = start || 0;
       start = 0;
     }
@@ -16021,25 +14600,25 @@ process.umask = function() { return 0; };
   // Function (ahem) Functions
   // ------------------
 
-  // Reusable constructor function for prototype setting.
-  var Ctor = function(){};
+  // Determines whether to execute a function as a constructor
+  // or a normal function with the provided arguments
+  var executeBound = function(sourceFunc, boundFunc, context, callingContext, args) {
+    if (!(callingContext instanceof boundFunc)) return sourceFunc.apply(context, args);
+    var self = baseCreate(sourceFunc.prototype);
+    var result = sourceFunc.apply(self, args);
+    if (_.isObject(result)) return result;
+    return self;
+  };
 
   // Create a function bound to a given object (assigning `this`, and arguments,
   // optionally). Delegates to **ECMAScript 5**'s native `Function.bind` if
   // available.
   _.bind = function(func, context) {
-    var args, bound;
     if (nativeBind && func.bind === nativeBind) return nativeBind.apply(func, slice.call(arguments, 1));
     if (!_.isFunction(func)) throw new TypeError('Bind must be called on a function');
-    args = slice.call(arguments, 2);
-    bound = function() {
-      if (!(this instanceof bound)) return func.apply(context, args.concat(slice.call(arguments)));
-      Ctor.prototype = func.prototype;
-      var self = new Ctor;
-      Ctor.prototype = null;
-      var result = func.apply(self, args.concat(slice.call(arguments)));
-      if (_.isObject(result)) return result;
-      return self;
+    var args = slice.call(arguments, 2);
+    var bound = function() {
+      return executeBound(func, bound, context, this, args.concat(slice.call(arguments)));
     };
     return bound;
   };
@@ -16049,15 +14628,16 @@ process.umask = function() { return 0; };
   // as a placeholder, allowing any combination of arguments to be pre-filled.
   _.partial = function(func) {
     var boundArgs = slice.call(arguments, 1);
-    return function() {
-      var position = 0;
-      var args = boundArgs.slice();
-      for (var i = 0, length = args.length; i < length; i++) {
-        if (args[i] === _) args[i] = arguments[position++];
+    var bound = function() {
+      var position = 0, length = boundArgs.length;
+      var args = Array(length);
+      for (var i = 0; i < length; i++) {
+        args[i] = boundArgs[i] === _ ? arguments[position++] : boundArgs[i];
       }
       while (position < arguments.length) args.push(arguments[position++]);
-      return func.apply(this, args);
+      return executeBound(func, bound, this, this, args);
     };
+    return bound;
   };
 
   // Bind a number of an object's methods to that object. Remaining arguments
@@ -16077,7 +14657,7 @@ process.umask = function() { return 0; };
   _.memoize = function(func, hasher) {
     var memoize = function(key) {
       var cache = memoize.cache;
-      var address = hasher ? hasher.apply(this, arguments) : key;
+      var address = '' + (hasher ? hasher.apply(this, arguments) : key);
       if (!_.has(cache, address)) cache[address] = func.apply(this, arguments);
       return cache[address];
     };
@@ -16096,9 +14676,7 @@ process.umask = function() { return 0; };
 
   // Defers a function, scheduling it to run after the current call stack has
   // cleared.
-  _.defer = function(func) {
-    return _.delay.apply(_, [func, 1].concat(slice.call(arguments, 1)));
-  };
+  _.defer = _.partial(_.delay, _, 1);
 
   // Returns a function, that, when invoked, will only be triggered at most once
   // during a given window of time. Normally, the throttled function will run
@@ -16123,8 +14701,10 @@ process.umask = function() { return 0; };
       context = this;
       args = arguments;
       if (remaining <= 0 || remaining > wait) {
-        clearTimeout(timeout);
-        timeout = null;
+        if (timeout) {
+          clearTimeout(timeout);
+          timeout = null;
+        }
         previous = now;
         result = func.apply(context, args);
         if (!timeout) context = args = null;
@@ -16145,7 +14725,7 @@ process.umask = function() { return 0; };
     var later = function() {
       var last = _.now() - timestamp;
 
-      if (last < wait && last > 0) {
+      if (last < wait && last >= 0) {
         timeout = setTimeout(later, wait - last);
       } else {
         timeout = null;
@@ -16198,7 +14778,7 @@ process.umask = function() { return 0; };
     };
   };
 
-  // Returns a function that will only be executed after being called N times.
+  // Returns a function that will only be executed on and after the Nth call.
   _.after = function(times, func) {
     return function() {
       if (--times < 1) {
@@ -16207,15 +14787,14 @@ process.umask = function() { return 0; };
     };
   };
 
-  // Returns a function that will only be executed before being called N times.
+  // Returns a function that will only be executed up to (but not including) the Nth call.
   _.before = function(times, func) {
     var memo;
     return function() {
       if (--times > 0) {
         memo = func.apply(this, arguments);
-      } else {
-        func = null;
       }
+      if (times <= 1) func = null;
       return memo;
     };
   };
@@ -16227,13 +14806,47 @@ process.umask = function() { return 0; };
   // Object Functions
   // ----------------
 
-  // Retrieve the names of an object's properties.
+  // Keys in IE < 9 that won't be iterated by `for key in ...` and thus missed.
+  var hasEnumBug = !{toString: null}.propertyIsEnumerable('toString');
+  var nonEnumerableProps = ['valueOf', 'isPrototypeOf', 'toString',
+                      'propertyIsEnumerable', 'hasOwnProperty', 'toLocaleString'];
+
+  function collectNonEnumProps(obj, keys) {
+    var nonEnumIdx = nonEnumerableProps.length;
+    var constructor = obj.constructor;
+    var proto = (_.isFunction(constructor) && constructor.prototype) || ObjProto;
+
+    // Constructor is a special case.
+    var prop = 'constructor';
+    if (_.has(obj, prop) && !_.contains(keys, prop)) keys.push(prop);
+
+    while (nonEnumIdx--) {
+      prop = nonEnumerableProps[nonEnumIdx];
+      if (prop in obj && obj[prop] !== proto[prop] && !_.contains(keys, prop)) {
+        keys.push(prop);
+      }
+    }
+  }
+
+  // Retrieve the names of an object's own properties.
   // Delegates to **ECMAScript 5**'s native `Object.keys`
   _.keys = function(obj) {
     if (!_.isObject(obj)) return [];
     if (nativeKeys) return nativeKeys(obj);
     var keys = [];
     for (var key in obj) if (_.has(obj, key)) keys.push(key);
+    // Ahem, IE < 9.
+    if (hasEnumBug) collectNonEnumProps(obj, keys);
+    return keys;
+  };
+
+  // Retrieve all the property names of an object.
+  _.allKeys = function(obj) {
+    if (!_.isObject(obj)) return [];
+    var keys = [];
+    for (var key in obj) keys.push(key);
+    // Ahem, IE < 9.
+    if (hasEnumBug) collectNonEnumProps(obj, keys);
     return keys;
   };
 
@@ -16246,6 +14859,21 @@ process.umask = function() { return 0; };
       values[i] = obj[keys[i]];
     }
     return values;
+  };
+
+  // Returns the results of applying the iteratee to each element of the object
+  // In contrast to _.map it returns an object
+  _.mapObject = function(obj, iteratee, context) {
+    iteratee = cb(iteratee, context);
+    var keys =  _.keys(obj),
+          length = keys.length,
+          results = {},
+          currentKey;
+      for (var index = 0; index < length; index++) {
+        currentKey = keys[index];
+        results[currentKey] = iteratee(obj[currentKey], currentKey, obj);
+      }
+      return results;
   };
 
   // Convert an object into a list of `[key, value]` pairs.
@@ -16280,37 +14908,38 @@ process.umask = function() { return 0; };
   };
 
   // Extend a given object with all the properties in passed-in object(s).
-  _.extend = function(obj) {
-    if (!_.isObject(obj)) return obj;
-    var source, prop;
-    for (var i = 1, length = arguments.length; i < length; i++) {
-      source = arguments[i];
-      for (prop in source) {
-        if (hasOwnProperty.call(source, prop)) {
-            obj[prop] = source[prop];
-        }
-      }
+  _.extend = createAssigner(_.allKeys);
+
+  // Assigns a given object with all the own properties in the passed-in object(s)
+  // (https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Object/assign)
+  _.extendOwn = _.assign = createAssigner(_.keys);
+
+  // Returns the first key on an object that passes a predicate test
+  _.findKey = function(obj, predicate, context) {
+    predicate = cb(predicate, context);
+    var keys = _.keys(obj), key;
+    for (var i = 0, length = keys.length; i < length; i++) {
+      key = keys[i];
+      if (predicate(obj[key], key, obj)) return key;
     }
-    return obj;
   };
 
   // Return a copy of the object only containing the whitelisted properties.
-  _.pick = function(obj, iteratee, context) {
-    var result = {}, key;
+  _.pick = function(object, oiteratee, context) {
+    var result = {}, obj = object, iteratee, keys;
     if (obj == null) return result;
-    if (_.isFunction(iteratee)) {
-      iteratee = createCallback(iteratee, context);
-      for (key in obj) {
-        var value = obj[key];
-        if (iteratee(value, key, obj)) result[key] = value;
-      }
+    if (_.isFunction(oiteratee)) {
+      keys = _.allKeys(obj);
+      iteratee = optimizeCb(oiteratee, context);
     } else {
-      var keys = concat.apply([], slice.call(arguments, 1));
-      obj = new Object(obj);
-      for (var i = 0, length = keys.length; i < length; i++) {
-        key = keys[i];
-        if (key in obj) result[key] = obj[key];
-      }
+      keys = flatten(arguments, false, false, 1);
+      iteratee = function(value, key, obj) { return key in obj; };
+      obj = Object(obj);
+    }
+    for (var i = 0, length = keys.length; i < length; i++) {
+      var key = keys[i];
+      var value = obj[key];
+      if (iteratee(value, key, obj)) result[key] = value;
     }
     return result;
   };
@@ -16320,7 +14949,7 @@ process.umask = function() { return 0; };
     if (_.isFunction(iteratee)) {
       iteratee = _.negate(iteratee);
     } else {
-      var keys = _.map(concat.apply([], slice.call(arguments, 1)), String);
+      var keys = _.map(flatten(arguments, false, false, 1), String);
       iteratee = function(value, key) {
         return !_.contains(keys, key);
       };
@@ -16329,15 +14958,15 @@ process.umask = function() { return 0; };
   };
 
   // Fill in a given object with default properties.
-  _.defaults = function(obj) {
-    if (!_.isObject(obj)) return obj;
-    for (var i = 1, length = arguments.length; i < length; i++) {
-      var source = arguments[i];
-      for (var prop in source) {
-        if (obj[prop] === void 0) obj[prop] = source[prop];
-      }
-    }
-    return obj;
+  _.defaults = createAssigner(_.allKeys, true);
+
+  // Creates an object that inherits from the given prototype object.
+  // If additional properties are provided then they will be added to the
+  // created object.
+  _.create = function(prototype, props) {
+    var result = baseCreate(prototype);
+    if (props) _.extendOwn(result, props);
+    return result;
   };
 
   // Create a (shallow-cloned) duplicate of an object.
@@ -16353,6 +14982,19 @@ process.umask = function() { return 0; };
     interceptor(obj);
     return obj;
   };
+
+  // Returns whether an object has a given set of `key:value` pairs.
+  _.isMatch = function(object, attrs) {
+    var keys = _.keys(attrs), length = keys.length;
+    if (object == null) return !length;
+    var obj = Object(object);
+    for (var i = 0; i < length; i++) {
+      var key = keys[i];
+      if (attrs[key] !== obj[key] || !(key in obj)) return false;
+    }
+    return true;
+  };
+
 
   // Internal recursive comparison function for `isEqual`.
   var eq = function(a, b, aStack, bStack) {
@@ -16388,74 +15030,76 @@ process.umask = function() { return 0; };
         // of `NaN` are not equivalent.
         return +a === +b;
     }
-    if (typeof a != 'object' || typeof b != 'object') return false;
+
+    var areArrays = className === '[object Array]';
+    if (!areArrays) {
+      if (typeof a != 'object' || typeof b != 'object') return false;
+
+      // Objects with different constructors are not equivalent, but `Object`s or `Array`s
+      // from different frames are.
+      var aCtor = a.constructor, bCtor = b.constructor;
+      if (aCtor !== bCtor && !(_.isFunction(aCtor) && aCtor instanceof aCtor &&
+                               _.isFunction(bCtor) && bCtor instanceof bCtor)
+                          && ('constructor' in a && 'constructor' in b)) {
+        return false;
+      }
+    }
     // Assume equality for cyclic structures. The algorithm for detecting cyclic
     // structures is adapted from ES 5.1 section 15.12.3, abstract operation `JO`.
+
+    // Initializing stack of traversed objects.
+    // It's done here since we only need them for objects and arrays comparison.
+    aStack = aStack || [];
+    bStack = bStack || [];
     var length = aStack.length;
     while (length--) {
       // Linear search. Performance is inversely proportional to the number of
       // unique nested structures.
       if (aStack[length] === a) return bStack[length] === b;
     }
-    // Objects with different constructors are not equivalent, but `Object`s
-    // from different frames are.
-    var aCtor = a.constructor, bCtor = b.constructor;
-    if (
-      aCtor !== bCtor &&
-      // Handle Object.create(x) cases
-      'constructor' in a && 'constructor' in b &&
-      !(_.isFunction(aCtor) && aCtor instanceof aCtor &&
-        _.isFunction(bCtor) && bCtor instanceof bCtor)
-    ) {
-      return false;
-    }
+
     // Add the first object to the stack of traversed objects.
     aStack.push(a);
     bStack.push(b);
-    var size, result;
+
     // Recursively compare objects and arrays.
-    if (className === '[object Array]') {
+    if (areArrays) {
       // Compare array lengths to determine if a deep comparison is necessary.
-      size = a.length;
-      result = size === b.length;
-      if (result) {
-        // Deep compare the contents, ignoring non-numeric properties.
-        while (size--) {
-          if (!(result = eq(a[size], b[size], aStack, bStack))) break;
-        }
+      length = a.length;
+      if (length !== b.length) return false;
+      // Deep compare the contents, ignoring non-numeric properties.
+      while (length--) {
+        if (!eq(a[length], b[length], aStack, bStack)) return false;
       }
     } else {
       // Deep compare objects.
       var keys = _.keys(a), key;
-      size = keys.length;
+      length = keys.length;
       // Ensure that both objects contain the same number of properties before comparing deep equality.
-      result = _.keys(b).length === size;
-      if (result) {
-        while (size--) {
-          // Deep compare each member
-          key = keys[size];
-          if (!(result = _.has(b, key) && eq(a[key], b[key], aStack, bStack))) break;
-        }
+      if (_.keys(b).length !== length) return false;
+      while (length--) {
+        // Deep compare each member
+        key = keys[length];
+        if (!(_.has(b, key) && eq(a[key], b[key], aStack, bStack))) return false;
       }
     }
     // Remove the first object from the stack of traversed objects.
     aStack.pop();
     bStack.pop();
-    return result;
+    return true;
   };
 
   // Perform a deep comparison to check if two objects are equal.
   _.isEqual = function(a, b) {
-    return eq(a, b, [], []);
+    return eq(a, b);
   };
 
   // Is a given array, string, or object empty?
   // An "empty" object has no enumerable own-properties.
   _.isEmpty = function(obj) {
     if (obj == null) return true;
-    if (_.isArray(obj) || _.isString(obj) || _.isArguments(obj)) return obj.length === 0;
-    for (var key in obj) if (_.has(obj, key)) return false;
-    return true;
+    if (isArrayLike(obj) && (_.isArray(obj) || _.isString(obj) || _.isArguments(obj))) return obj.length === 0;
+    return _.keys(obj).length === 0;
   };
 
   // Is a given value a DOM element?
@@ -16475,14 +15119,14 @@ process.umask = function() { return 0; };
     return type === 'function' || type === 'object' && !!obj;
   };
 
-  // Add some isType methods: isArguments, isFunction, isString, isNumber, isDate, isRegExp.
-  _.each(['Arguments', 'Function', 'String', 'Number', 'Date', 'RegExp'], function(name) {
+  // Add some isType methods: isArguments, isFunction, isString, isNumber, isDate, isRegExp, isError.
+  _.each(['Arguments', 'Function', 'String', 'Number', 'Date', 'RegExp', 'Error'], function(name) {
     _['is' + name] = function(obj) {
       return toString.call(obj) === '[object ' + name + ']';
     };
   });
 
-  // Define a fallback version of the method in browsers (ahem, IE), where
+  // Define a fallback version of the method in browsers (ahem, IE < 9), where
   // there isn't any inspectable "Arguments" type.
   if (!_.isArguments(arguments)) {
     _.isArguments = function(obj) {
@@ -16490,8 +15134,9 @@ process.umask = function() { return 0; };
     };
   }
 
-  // Optimize `isFunction` if appropriate. Work around an IE 11 bug.
-  if (typeof /./ !== 'function') {
+  // Optimize `isFunction` if appropriate. Work around some typeof bugs in old v8,
+  // IE 11 (#1621), and in Safari 8 (#1929).
+  if (typeof /./ != 'function' && typeof Int8Array != 'object') {
     _.isFunction = function(obj) {
       return typeof obj == 'function' || false;
     };
@@ -16543,6 +15188,7 @@ process.umask = function() { return 0; };
     return value;
   };
 
+  // Predicate-generating functions. Often useful outside of Underscore.
   _.constant = function(value) {
     return function() {
       return value;
@@ -16551,30 +15197,28 @@ process.umask = function() { return 0; };
 
   _.noop = function(){};
 
-  _.property = function(key) {
-    return function(obj) {
+  _.property = property;
+
+  // Generates a function for a given object that returns a given property.
+  _.propertyOf = function(obj) {
+    return obj == null ? function(){} : function(key) {
       return obj[key];
     };
   };
 
-  // Returns a predicate for checking whether an object has a given set of `key:value` pairs.
-  _.matches = function(attrs) {
-    var pairs = _.pairs(attrs), length = pairs.length;
+  // Returns a predicate for checking whether an object has a given set of
+  // `key:value` pairs.
+  _.matcher = _.matches = function(attrs) {
+    attrs = _.extendOwn({}, attrs);
     return function(obj) {
-      if (obj == null) return !length;
-      obj = new Object(obj);
-      for (var i = 0; i < length; i++) {
-        var pair = pairs[i], key = pair[0];
-        if (pair[1] !== obj[key] || !(key in obj)) return false;
-      }
-      return true;
+      return _.isMatch(obj, attrs);
     };
   };
 
   // Run a function **n** times.
   _.times = function(n, iteratee, context) {
     var accum = Array(Math.max(0, n));
-    iteratee = createCallback(iteratee, context, 1);
+    iteratee = optimizeCb(iteratee, context, 1);
     for (var i = 0; i < n; i++) accum[i] = iteratee(i);
     return accum;
   };
@@ -16623,10 +15267,12 @@ process.umask = function() { return 0; };
 
   // If the value of the named `property` is a function then invoke it with the
   // `object` as context; otherwise, return it.
-  _.result = function(object, property) {
-    if (object == null) return void 0;
-    var value = object[property];
-    return _.isFunction(value) ? object[property]() : value;
+  _.result = function(object, property, fallback) {
+    var value = object == null ? void 0 : object[property];
+    if (value === void 0) {
+      value = fallback;
+    }
+    return _.isFunction(value) ? value.call(object) : value;
   };
 
   // Generate a unique integer id (unique within the entire client session).
@@ -16741,8 +15387,8 @@ process.umask = function() { return 0; };
   // underscore functions. Wrapped objects may be chained.
 
   // Helper function to continue chaining intermediate results.
-  var result = function(obj) {
-    return this._chain ? _(obj).chain() : obj;
+  var result = function(instance, obj) {
+    return instance._chain ? _(obj).chain() : obj;
   };
 
   // Add your own custom functions to the Underscore object.
@@ -16752,7 +15398,7 @@ process.umask = function() { return 0; };
       _.prototype[name] = function() {
         var args = [this._wrapped];
         push.apply(args, arguments);
-        return result.call(this, func.apply(_, args));
+        return result(this, func.apply(_, args));
       };
     });
   };
@@ -16767,7 +15413,7 @@ process.umask = function() { return 0; };
       var obj = this._wrapped;
       method.apply(obj, arguments);
       if ((name === 'shift' || name === 'splice') && obj.length === 0) delete obj[0];
-      return result.call(this, obj);
+      return result(this, obj);
     };
   });
 
@@ -16775,13 +15421,21 @@ process.umask = function() { return 0; };
   _.each(['concat', 'join', 'slice'], function(name) {
     var method = ArrayProto[name];
     _.prototype[name] = function() {
-      return result.call(this, method.apply(this._wrapped, arguments));
+      return result(this, method.apply(this._wrapped, arguments));
     };
   });
 
   // Extracts the result from a wrapped and chained object.
   _.prototype.value = function() {
     return this._wrapped;
+  };
+
+  // Provide unwrapping proxy for some methods used in engine operations
+  // such as arithmetic and JSON stringification.
+  _.prototype.valueOf = _.prototype.toJSON = _.prototype.value;
+
+  _.prototype.toString = function() {
+    return '' + this._wrapped;
   };
 
   // AMD registration happens at the end for compatibility with AMD loaders
@@ -16799,10 +15453,11 @@ process.umask = function() { return 0; };
 }.call(this));
 
 },{}],"/home/stahl/duino/CocoTeens7/Wav2SketchJS/node_modules/wavesurfer.js/dist/wavesurfer.min.js":[function(require,module,exports){
-/*! wavesurfer.js 1.1.8 (Sat, 09 Jul 2016 12:47:13 GMT)
+/*! wavesurfer.js 1.3.7 (Sun, 19 Mar 2017 17:49:02 GMT)
 * https://github.com/katspaugh/wavesurfer.js
 * @license CC-BY-3.0 */
-!function(a,b){"function"==typeof define&&define.amd?define("wavesurfer",[],function(){return a.WaveSurfer=b()}):"object"==typeof exports?module.exports=b():a.WaveSurfer=b()}(this,function(){"use strict";var a={defaultParams:{height:128,waveColor:"#999",progressColor:"#555",cursorColor:"#333",cursorWidth:1,skipLength:2,minPxPerSec:20,pixelRatio:window.devicePixelRatio||screen.deviceXDPI/screen.logicalXDPI,fillParent:!0,scrollParent:!1,hideScrollbar:!1,normalize:!1,audioContext:null,container:null,dragSelection:!0,loopSelection:!0,audioRate:1,interact:!0,splitChannels:!1,mediaContainer:null,mediaControls:!1,renderer:"Canvas",backend:"WebAudio",mediaType:"audio",autoCenter:!0},init:function(b){if(this.params=a.util.extend({},this.defaultParams,b),this.container="string"==typeof b.container?document.querySelector(this.params.container):this.params.container,!this.container)throw new Error("Container element not found");if(null==this.params.mediaContainer?this.mediaContainer=this.container:"string"==typeof this.params.mediaContainer?this.mediaContainer=document.querySelector(this.params.mediaContainer):this.mediaContainer=this.params.mediaContainer,!this.mediaContainer)throw new Error("Media Container element not found");this.savedVolume=0,this.isMuted=!1,this.tmpEvents=[],this.currentAjax=null,this.createDrawer(),this.createBackend()},createDrawer:function(){var b=this;this.drawer=Object.create(a.Drawer[this.params.renderer]),this.drawer.init(this.container,this.params),this.drawer.on("redraw",function(){b.drawBuffer(),b.drawer.progress(b.backend.getPlayedPercents())}),this.drawer.on("click",function(a,c){setTimeout(function(){b.seekTo(c)},0)}),this.drawer.on("scroll",function(a){b.fireEvent("scroll",a)})},createBackend:function(){var b=this;this.backend&&this.backend.destroy(),"AudioElement"==this.params.backend&&(this.params.backend="MediaElement"),"WebAudio"!=this.params.backend||a.WebAudio.supportsWebAudio()||(this.params.backend="MediaElement"),this.backend=Object.create(a[this.params.backend]),this.backend.init(this.params),this.backend.on("finish",function(){b.fireEvent("finish")}),this.backend.on("play",function(){b.fireEvent("play")}),this.backend.on("pause",function(){b.fireEvent("pause")}),this.backend.on("audioprocess",function(a){b.drawer.progress(b.backend.getPlayedPercents()),b.fireEvent("audioprocess",a)})},getDuration:function(){return this.backend.getDuration()},getCurrentTime:function(){return this.backend.getCurrentTime()},play:function(a,b){this.fireEvent("interaction",this.play.bind(this,a,b)),this.backend.play(a,b)},pause:function(){this.backend.pause()},playPause:function(){this.backend.isPaused()?this.play():this.pause()},isPlaying:function(){return!this.backend.isPaused()},skipBackward:function(a){this.skip(-a||-this.params.skipLength)},skipForward:function(a){this.skip(a||this.params.skipLength)},skip:function(a){var b=this.getCurrentTime()||0,c=this.getDuration()||1;b=Math.max(0,Math.min(c,b+(a||0))),this.seekAndCenter(b/c)},seekAndCenter:function(a){this.seekTo(a),this.drawer.recenter(a)},seekTo:function(a){this.fireEvent("interaction",this.seekTo.bind(this,a));var b=this.backend.isPaused(),c=this.params.scrollParent;b&&(this.params.scrollParent=!1),this.backend.seekTo(a*this.getDuration()),this.drawer.progress(this.backend.getPlayedPercents()),b||(this.backend.pause(),this.backend.play()),this.params.scrollParent=c,this.fireEvent("seek",a)},stop:function(){this.pause(),this.seekTo(0),this.drawer.progress(0)},setVolume:function(a){this.backend.setVolume(a)},setPlaybackRate:function(a){this.backend.setPlaybackRate(a)},toggleMute:function(){this.isMuted?(this.backend.setVolume(this.savedVolume),this.isMuted=!1):(this.savedVolume=this.backend.getVolume(),this.backend.setVolume(0),this.isMuted=!0)},toggleScroll:function(){this.params.scrollParent=!this.params.scrollParent,this.drawBuffer()},toggleInteraction:function(){this.params.interact=!this.params.interact},drawBuffer:function(){var a=Math.round(this.getDuration()*this.params.minPxPerSec*this.params.pixelRatio),b=this.drawer.getWidth(),c=a;this.params.fillParent&&(!this.params.scrollParent||a<b)&&(c=b);var d=this.backend.getPeaks(c);this.drawer.drawPeaks(d,c),this.fireEvent("redraw",d,c)},zoom:function(a){this.params.minPxPerSec=a,this.params.scrollParent=!0,this.drawBuffer(),this.seekAndCenter(this.getCurrentTime()/this.getDuration()),this.fireEvent("zoom",a)},loadArrayBuffer:function(a){this.decodeArrayBuffer(a,function(a){this.loadDecodedBuffer(a)}.bind(this))},loadDecodedBuffer:function(a){this.backend.load(a),this.drawBuffer(),this.fireEvent("ready")},loadBlob:function(a){var b=this,c=new FileReader;c.addEventListener("progress",function(a){b.onProgress(a)}),c.addEventListener("load",function(a){b.loadArrayBuffer(a.target.result)}),c.addEventListener("error",function(){b.fireEvent("error","Error reading file")}),c.readAsArrayBuffer(a),this.empty()},load:function(a,b){switch(this.empty(),this.params.backend){case"WebAudio":return this.loadBuffer(a,b);case"MediaElement":return this.loadMediaElement(a,b)}},loadBuffer:function(a,b){var c=function(b){return b&&this.tmpEvents.push(this.once("ready",b)),this.getArrayBuffer(a,this.loadArrayBuffer.bind(this))}.bind(this);return b?(this.backend.setPeaks(b),this.drawBuffer(),this.tmpEvents.push(this.once("interaction",c)),void 0):c()},loadMediaElement:function(a,b){var c=a;if("string"==typeof a)this.backend.load(c,this.mediaContainer,b);else{var d=a;this.backend.loadElt(d,b),c=d.src}this.tmpEvents.push(this.backend.once("canplay",function(){this.drawBuffer(),this.fireEvent("ready")}.bind(this)),this.backend.once("error",function(a){this.fireEvent("error",a)}.bind(this))),b?this.backend.setPeaks(b):this.backend.supportsWebAudio()&&this.getArrayBuffer(c,function(a){this.decodeArrayBuffer(a,function(a){this.backend.buffer=a,this.drawBuffer()}.bind(this))}.bind(this))},decodeArrayBuffer:function(a,b){this.arraybuffer=a,this.backend.decodeArrayBuffer(a,function(c){this.arraybuffer==a&&(b(c),this.arraybuffer=null)}.bind(this),this.fireEvent.bind(this,"error","Error decoding audiobuffer"))},getArrayBuffer:function(b,c){var d=this,e=a.util.ajax({url:b,responseType:"arraybuffer"});return this.currentAjax=e,this.tmpEvents.push(e.on("progress",function(a){d.onProgress(a)}),e.on("success",function(a,b){c(a),d.currentAjax=null}),e.on("error",function(a){d.fireEvent("error","XHR error: "+a.target.statusText),d.currentAjax=null})),e},onProgress:function(a){if(a.lengthComputable)var b=a.loaded/a.total;else b=a.loaded/(a.loaded+1e6);this.fireEvent("loading",Math.round(100*b),a.target)},exportPCM:function(a,b,c){a=a||1024,b=b||1e4,c=c||!1;var d=this.backend.getPeaks(a,b),e=[].map.call(d,function(a){return Math.round(a*b)/b}),f=JSON.stringify(e);return c||window.open("data:application/json;charset=utf-8,"+encodeURIComponent(f)),f},cancelAjax:function(){this.currentAjax&&(this.currentAjax.xhr.abort(),this.currentAjax=null)},clearTmpEvents:function(){this.tmpEvents.forEach(function(a){a.un()})},empty:function(){this.backend.isPaused()||(this.stop(),this.backend.disconnectSource()),this.cancelAjax(),this.clearTmpEvents(),this.drawer.progress(0),this.drawer.setWidth(0),this.drawer.drawPeaks({length:this.drawer.getWidth()},0)},destroy:function(){this.fireEvent("destroy"),this.cancelAjax(),this.clearTmpEvents(),this.unAll(),this.backend.destroy(),this.drawer.destroy()}};return a.create=function(b){var c=Object.create(a);return c.init(b),c},a.util={extend:function(a){var b=Array.prototype.slice.call(arguments,1);return b.forEach(function(b){Object.keys(b).forEach(function(c){a[c]=b[c]})}),a},min:function(a){var b=+(1/0);for(var c in a)a[c]<b&&(b=a[c]);return b},max:function(a){var b=-(1/0);for(var c in a)a[c]>b&&(b=a[c]);return b},getId:function(){return"wavesurfer_"+Math.random().toString(32).substring(2)},ajax:function(b){var c=Object.create(a.Observer),d=new XMLHttpRequest,e=!1;return d.open(b.method||"GET",b.url,!0),d.responseType=b.responseType||"json",d.addEventListener("progress",function(a){c.fireEvent("progress",a),a.lengthComputable&&a.loaded==a.total&&(e=!0)}),d.addEventListener("load",function(a){e||c.fireEvent("progress",a),c.fireEvent("load",a),200==d.status||206==d.status?c.fireEvent("success",d.response,a):c.fireEvent("error",a)}),d.addEventListener("error",function(a){c.fireEvent("error",a)}),d.send(),c.xhr=d,c}},a.Observer={on:function(a,b){this.handlers||(this.handlers={});var c=this.handlers[a];return c||(c=this.handlers[a]=[]),c.push(b),{name:a,callback:b,un:this.un.bind(this,a,b)}},un:function(a,b){if(this.handlers){var c=this.handlers[a];if(c)if(b)for(var d=c.length-1;d>=0;d--)c[d]==b&&c.splice(d,1);else c.length=0}},unAll:function(){this.handlers=null},once:function(a,b){var c=this,d=function(){b.apply(this,arguments),setTimeout(function(){c.un(a,d)},0)};return this.on(a,d)},fireEvent:function(a){if(this.handlers){var b=this.handlers[a],c=Array.prototype.slice.call(arguments,1);b&&b.forEach(function(a){a.apply(null,c)})}}},a.util.extend(a,a.Observer),a.WebAudio={scriptBufferSize:256,PLAYING_STATE:0,PAUSED_STATE:1,FINISHED_STATE:2,supportsWebAudio:function(){return!(!window.AudioContext&&!window.webkitAudioContext)},getAudioContext:function(){return a.WebAudio.audioContext||(a.WebAudio.audioContext=new(window.AudioContext||window.webkitAudioContext)),a.WebAudio.audioContext},getOfflineAudioContext:function(b){return a.WebAudio.offlineAudioContext||(a.WebAudio.offlineAudioContext=new(window.OfflineAudioContext||window.webkitOfflineAudioContext)(1,2,b)),a.WebAudio.offlineAudioContext},init:function(b){this.params=b,this.ac=b.audioContext||this.getAudioContext(),this.lastPlay=this.ac.currentTime,this.startPosition=0,this.scheduledPause=null,this.states=[Object.create(a.WebAudio.state.playing),Object.create(a.WebAudio.state.paused),Object.create(a.WebAudio.state.finished)],this.createVolumeNode(),this.createScriptNode(),this.createAnalyserNode(),this.setState(this.PAUSED_STATE),this.setPlaybackRate(this.params.audioRate)},disconnectFilters:function(){this.filters&&(this.filters.forEach(function(a){a&&a.disconnect()}),this.filters=null,this.analyser.connect(this.gainNode))},setState:function(a){this.state!==this.states[a]&&(this.state=this.states[a],this.state.init.call(this))},setFilter:function(){this.setFilters([].slice.call(arguments))},setFilters:function(a){this.disconnectFilters(),a&&a.length&&(this.filters=a,this.analyser.disconnect(),a.reduce(function(a,b){return a.connect(b),b},this.analyser).connect(this.gainNode))},createScriptNode:function(){this.ac.createScriptProcessor?this.scriptNode=this.ac.createScriptProcessor(this.scriptBufferSize):this.scriptNode=this.ac.createJavaScriptNode(this.scriptBufferSize),this.scriptNode.connect(this.ac.destination)},addOnAudioProcess:function(){var a=this;this.scriptNode.onaudioprocess=function(){var b=a.getCurrentTime();b>=a.getDuration()?(a.setState(a.FINISHED_STATE),a.fireEvent("pause")):b>=a.scheduledPause?a.pause():a.state===a.states[a.PLAYING_STATE]&&a.fireEvent("audioprocess",b)}},removeOnAudioProcess:function(){this.scriptNode.onaudioprocess=null},createAnalyserNode:function(){this.analyser=this.ac.createAnalyser(),this.analyser.connect(this.gainNode)},createVolumeNode:function(){this.ac.createGain?this.gainNode=this.ac.createGain():this.gainNode=this.ac.createGainNode(),this.gainNode.connect(this.ac.destination)},setVolume:function(a){this.gainNode.gain.value=a},getVolume:function(){return this.gainNode.gain.value},decodeArrayBuffer:function(a,b,c){this.offlineAc||(this.offlineAc=this.getOfflineAudioContext(this.ac?this.ac.sampleRate:44100)),this.offlineAc.decodeAudioData(a,function(a){b(a)}.bind(this),c)},setPeaks:function(a){this.peaks=a},getPeaks:function(a){if(this.peaks)return this.peaks;for(var b=this.buffer.length/a,c=~~(b/10)||1,d=this.buffer.numberOfChannels,e=[],f=[],g=0;g<d;g++)for(var h=e[g]=[],i=this.buffer.getChannelData(g),j=0;j<a;j++){for(var k=~~(j*b),l=~~(k+b),m=0,n=0,o=k;o<l;o+=c){var p=i[o];p>n&&(n=p),p<m&&(m=p)}h[2*j]=n,h[2*j+1]=m,(0==g||n>f[2*j])&&(f[2*j]=n),(0==g||m<f[2*j+1])&&(f[2*j+1]=m)}return this.params.splitChannels?e:f},getPlayedPercents:function(){return this.state.getPlayedPercents.call(this)},disconnectSource:function(){this.source&&this.source.disconnect()},destroy:function(){this.isPaused()||this.pause(),this.unAll(),this.buffer=null,this.disconnectFilters(),this.disconnectSource(),this.gainNode.disconnect(),this.scriptNode.disconnect(),this.analyser.disconnect()},load:function(a){this.startPosition=0,this.lastPlay=this.ac.currentTime,this.buffer=a,this.createSource()},createSource:function(){this.disconnectSource(),this.source=this.ac.createBufferSource(),this.source.start=this.source.start||this.source.noteGrainOn,this.source.stop=this.source.stop||this.source.noteOff,this.source.playbackRate.value=this.playbackRate,this.source.buffer=this.buffer,this.source.connect(this.analyser)},isPaused:function(){return this.state!==this.states[this.PLAYING_STATE]},getDuration:function(){return this.buffer?this.buffer.duration:0},seekTo:function(a,b){if(this.buffer)return this.scheduledPause=null,null==a&&(a=this.getCurrentTime(),a>=this.getDuration()&&(a=0)),null==b&&(b=this.getDuration()),this.startPosition=a,this.lastPlay=this.ac.currentTime,this.state===this.states[this.FINISHED_STATE]&&this.setState(this.PAUSED_STATE),{start:a,end:b}},getPlayedTime:function(){return(this.ac.currentTime-this.lastPlay)*this.playbackRate},play:function(a,b){if(this.buffer){this.createSource();var c=this.seekTo(a,b);a=c.start,b=c.end,this.scheduledPause=b,this.source.start(0,a,b-a),this.setState(this.PLAYING_STATE),this.fireEvent("play")}},pause:function(){this.scheduledPause=null,this.startPosition+=this.getPlayedTime(),this.source&&this.source.stop(0),this.setState(this.PAUSED_STATE),this.fireEvent("pause")},getCurrentTime:function(){return this.state.getCurrentTime.call(this)},setPlaybackRate:function(a){a=a||1,this.isPaused()?this.playbackRate=a:(this.pause(),this.playbackRate=a,this.play())}},a.WebAudio.state={},a.WebAudio.state.playing={init:function(){this.addOnAudioProcess()},getPlayedPercents:function(){var a=this.getDuration();return this.getCurrentTime()/a||0},getCurrentTime:function(){return this.startPosition+this.getPlayedTime()}},a.WebAudio.state.paused={init:function(){this.removeOnAudioProcess()},getPlayedPercents:function(){var a=this.getDuration();return this.getCurrentTime()/a||0},getCurrentTime:function(){return this.startPosition}},a.WebAudio.state.finished={init:function(){this.removeOnAudioProcess(),this.fireEvent("finish")},getPlayedPercents:function(){return 1},getCurrentTime:function(){return this.getDuration()}},a.util.extend(a.WebAudio,a.Observer),a.MediaElement=Object.create(a.WebAudio),a.util.extend(a.MediaElement,{init:function(a){this.params=a,this.media={currentTime:0,duration:0,paused:!0,playbackRate:1,play:function(){},pause:function(){}},this.mediaType=a.mediaType.toLowerCase(),this.elementPosition=a.elementPosition,this.setPlaybackRate(this.params.audioRate),this.createTimer()},createTimer:function(){var a=this,b=function(){if(!a.isPaused()){a.fireEvent("audioprocess",a.getCurrentTime());var c=window.requestAnimationFrame||window.webkitRequestAnimationFrame;c(b)}};this.on("play",b)},load:function(a,b,c){var d=document.createElement(this.mediaType);d.controls=this.params.mediaControls,d.autoplay=this.params.autoplay||!1,d.preload="auto",d.src=a,d.style.width="100%";var e=b.querySelector(this.mediaType);e&&b.removeChild(e),b.appendChild(d),this._load(d,c)},loadElt:function(a,b){var c=a;c.controls=this.params.mediaControls,c.autoplay=this.params.autoplay||!1,this._load(c,b)},_load:function(a,b){var c=this;a.load(),a.addEventListener("error",function(){c.fireEvent("error","Error loading media element")}),a.addEventListener("canplay",function(){c.fireEvent("canplay")}),a.addEventListener("ended",function(){c.fireEvent("finish")}),this.media=a,this.peaks=b,this.onPlayEnd=null,this.buffer=null,this.setPlaybackRate(this.playbackRate)},isPaused:function(){return!this.media||this.media.paused},getDuration:function(){var a=this.media.duration;return a>=1/0&&(a=this.media.seekable.end(0)),a},getCurrentTime:function(){return this.media&&this.media.currentTime},getPlayedPercents:function(){return this.getCurrentTime()/this.getDuration()||0},setPlaybackRate:function(a){this.playbackRate=a||1,this.media.playbackRate=this.playbackRate},seekTo:function(a){null!=a&&(this.media.currentTime=a),this.clearPlayEnd()},play:function(a,b){this.seekTo(a),this.media.play(),b&&this.setPlayEnd(b),this.fireEvent("play")},pause:function(){this.media&&this.media.pause(),this.clearPlayEnd(),this.fireEvent("pause")},setPlayEnd:function(a){var b=this;this.onPlayEnd=function(c){c>=a&&(b.pause(),b.seekTo(a))},this.on("audioprocess",this.onPlayEnd)},clearPlayEnd:function(){this.onPlayEnd&&(this.un("audioprocess",this.onPlayEnd),this.onPlayEnd=null)},getPeaks:function(b){return this.buffer?a.WebAudio.getPeaks.call(this,b):this.peaks||[]},getVolume:function(){return this.media.volume},setVolume:function(a){this.media.volume=a},destroy:function(){this.pause(),this.unAll(),this.media&&this.media.parentNode&&this.media.parentNode.removeChild(this.media),this.media=null}}),a.AudioElement=a.MediaElement,a.Drawer={init:function(a,b){this.container=a,this.params=b,this.width=0,this.height=b.height*this.params.pixelRatio,this.lastPos=0,this.initDrawer(b),this.createWrapper(),this.createElements()},createWrapper:function(){this.wrapper=this.container.appendChild(document.createElement("wave")),this.style(this.wrapper,{display:"block",position:"relative",userSelect:"none",webkitUserSelect:"none",height:this.params.height+"px"}),(this.params.fillParent||this.params.scrollParent)&&this.style(this.wrapper,{width:"100%",overflowX:this.params.hideScrollbar?"hidden":"auto",overflowY:"hidden"}),this.setupWrapperEvents()},handleEvent:function(a){a.preventDefault();var b,c=a.targetTouches?a.targetTouches[0].clientX:a.clientX,d=this.wrapper.getBoundingClientRect(),e=this.width,f=this.getWidth();return!this.params.fillParent&&e<f?(b=(c-d.left)*this.params.pixelRatio/e||0,b>1&&(b=1)):b=(c-d.left+this.wrapper.scrollLeft)/this.wrapper.scrollWidth||0,b},setupWrapperEvents:function(){var a=this;this.wrapper.addEventListener("click",function(b){var c=a.wrapper.offsetHeight-a.wrapper.clientHeight;if(0!=c){var d=a.wrapper.getBoundingClientRect();if(b.clientY>=d.bottom-c)return}a.params.interact&&a.fireEvent("click",b,a.handleEvent(b))}),this.wrapper.addEventListener("scroll",function(b){a.fireEvent("scroll",b)})},drawPeaks:function(a,b){this.resetScroll(),this.setWidth(b),this.params.barWidth?this.drawBars(a):this.drawWave(a)},style:function(a,b){return Object.keys(b).forEach(function(c){a.style[c]!==b[c]&&(a.style[c]=b[c])}),a},resetScroll:function(){null!==this.wrapper&&(this.wrapper.scrollLeft=0)},recenter:function(a){var b=this.wrapper.scrollWidth*a;this.recenterOnPosition(b,!0)},recenterOnPosition:function(a,b){var c=this.wrapper.scrollLeft,d=~~(this.wrapper.clientWidth/2),e=a-d,f=e-c,g=this.wrapper.scrollWidth-this.wrapper.clientWidth;if(0!=g){if(!b&&-d<=f&&f<d){var h=5;f=Math.max(-h,Math.min(h,f)),e=c+f}e=Math.max(0,Math.min(g,e)),e!=c&&(this.wrapper.scrollLeft=e)}},getWidth:function(){return Math.round(this.container.clientWidth*this.params.pixelRatio)},setWidth:function(a){a!=this.width&&(this.width=a,this.params.fillParent||this.params.scrollParent?this.style(this.wrapper,{width:""}):this.style(this.wrapper,{width:~~(this.width/this.params.pixelRatio)+"px"}),this.updateSize())},setHeight:function(a){a!=this.height&&(this.height=a,this.style(this.wrapper,{height:~~(this.height/this.params.pixelRatio)+"px"}),this.updateSize())},progress:function(a){var b=1/this.params.pixelRatio,c=Math.round(a*this.width)*b;if(c<this.lastPos||c-this.lastPos>=b){if(this.lastPos=c,this.params.scrollParent&&this.params.autoCenter){var d=~~(this.wrapper.scrollWidth*a);this.recenterOnPosition(d)}this.updateProgress(a)}},destroy:function(){this.unAll(),this.wrapper&&(this.container.removeChild(this.wrapper),this.wrapper=null)},initDrawer:function(){},createElements:function(){},updateSize:function(){},drawWave:function(a,b){},clearWave:function(){},updateProgress:function(a){}},a.util.extend(a.Drawer,a.Observer),a.Drawer.Canvas=Object.create(a.Drawer),a.util.extend(a.Drawer.Canvas,{createElements:function(){var a=this.wrapper.appendChild(this.style(document.createElement("canvas"),{position:"absolute",zIndex:1,left:0,top:0,bottom:0}));if(this.waveCc=a.getContext("2d"),this.progressWave=this.wrapper.appendChild(this.style(document.createElement("wave"),{position:"absolute",zIndex:2,left:0,top:0,bottom:0,overflow:"hidden",width:"0",display:"none",boxSizing:"border-box",borderRightStyle:"solid",borderRightWidth:this.params.cursorWidth+"px",borderRightColor:this.params.cursorColor})),this.params.waveColor!=this.params.progressColor){var b=this.progressWave.appendChild(document.createElement("canvas"));this.progressCc=b.getContext("2d")}},updateSize:function(){var a=Math.round(this.width/this.params.pixelRatio);this.waveCc.canvas.width=this.width,this.waveCc.canvas.height=this.height,this.style(this.waveCc.canvas,{width:a+"px"}),this.style(this.progressWave,{display:"block"}),this.progressCc&&(this.progressCc.canvas.width=this.width,this.progressCc.canvas.height=this.height,this.style(this.progressCc.canvas,{width:a+"px"})),this.clearWave()},clearWave:function(){this.waveCc.clearRect(0,0,this.width,this.height),this.progressCc&&this.progressCc.clearRect(0,0,this.width,this.height)},drawBars:function(a,b){if(a[0]instanceof Array){var c=a;if(this.params.splitChannels)return this.setHeight(c.length*this.params.height*this.params.pixelRatio),void c.forEach(this.drawBars,this);a=c[0]}var d=[].some.call(a,function(a){return a<0});d&&(a=[].filter.call(a,function(a,b){return b%2==0}));var e=.5/this.params.pixelRatio,f=this.width,g=this.params.height*this.params.pixelRatio,h=g*b||0,i=g/2,j=a.length,k=this.params.barWidth*this.params.pixelRatio,l=Math.max(this.params.pixelRatio,~~(k/2)),m=k+l,n=1;this.params.normalize&&(n=Math.max.apply(Math,a));var o=j/f;this.waveCc.fillStyle=this.params.waveColor,this.progressCc&&(this.progressCc.fillStyle=this.params.progressColor),[this.waveCc,this.progressCc].forEach(function(b){if(b)for(var c=0;c<f;c+=m){var d=Math.round(a[Math.floor(c*o)]/n*i);b.fillRect(c+e,i-d+h,k+e,2*d)}},this)},drawWave:function(a,b){if(a[0]instanceof Array){var c=a;if(this.params.splitChannels)return this.setHeight(c.length*this.params.height*this.params.pixelRatio),void c.forEach(this.drawWave,this);a=c[0]}var d=[].some.call(a,function(a){return a<0});if(!d){for(var e=[],f=0,g=a.length;f<g;f++)e[2*f]=a[f],e[2*f+1]=-a[f];a=e}var h=.5/this.params.pixelRatio,i=this.params.height*this.params.pixelRatio,j=i*b||0,k=i/2,l=~~(a.length/2),m=1;this.params.fillParent&&this.width!=l&&(m=this.width/l);var n=1;if(this.params.normalize){var o=Math.max.apply(Math,a),p=Math.min.apply(Math,a);n=-p>o?-p:o}this.waveCc.fillStyle=this.params.waveColor,this.progressCc&&(this.progressCc.fillStyle=this.params.progressColor),[this.waveCc,this.progressCc].forEach(function(b){if(b){b.beginPath(),b.moveTo(h,k+j);for(var c=0;c<l;c++){var d=Math.round(a[2*c]/n*k);b.lineTo(c*m+h,k-d+j)}for(var c=l-1;c>=0;c--){var d=Math.round(a[2*c+1]/n*k);b.lineTo(c*m+h,k-d+j)}b.closePath(),b.fill(),b.fillRect(0,k+j-h,this.width,h)}},this)},updateProgress:function(a){var b=Math.round(this.width*a)/this.params.pixelRatio;this.style(this.progressWave,{width:b+"px"})}}),a.Drawer.MultiCanvas=Object.create(a.Drawer),a.util.extend(a.Drawer.MultiCanvas,{initDrawer:function(a){if(this.maxCanvasWidth=null!=a.maxCanvasWidth?a.maxCanvasWidth:4e3,this.maxCanvasElementWidth=Math.round(this.maxCanvasWidth/this.params.pixelRatio),this.maxCanvasWidth<=1)throw"maxCanvasWidth must be greater than 1.";if(this.maxCanvasWidth%2==1)throw"maxCanvasWidth must be an even number.";this.hasProgressCanvas=this.params.waveColor!=this.params.progressColor,this.halfPixel=.5/this.params.pixelRatio,this.canvases=[]},createElements:function(){this.progressWave=this.wrapper.appendChild(this.style(document.createElement("wave"),{position:"absolute",zIndex:2,left:0,top:0,bottom:0,overflow:"hidden",width:"0",display:"none",boxSizing:"border-box",borderRightStyle:"solid",borderRightWidth:this.params.cursorWidth+"px",borderRightColor:this.params.cursorColor})),this.addCanvas()},updateSize:function(){for(var a=Math.round(this.width/this.params.pixelRatio),b=Math.ceil(a/this.maxCanvasElementWidth);this.canvases.length<b;)this.addCanvas();for(;this.canvases.length>b;)this.removeCanvas();for(var c in this.canvases){var d=this.maxCanvasWidth+2*Math.ceil(this.params.pixelRatio/2);c==this.canvases.length-1&&(d=this.width-this.maxCanvasWidth*(this.canvases.length-1)),this.updateDimensions(this.canvases[c],d,this.height),this.clearWaveForEntry(this.canvases[c])}},addCanvas:function(){var a={},b=this.maxCanvasElementWidth*this.canvases.length;a.wave=this.wrapper.appendChild(this.style(document.createElement("canvas"),{position:"absolute",zIndex:1,left:b+"px",top:0,bottom:0})),a.waveCtx=a.wave.getContext("2d"),this.hasProgressCanvas&&(a.progress=this.progressWave.appendChild(this.style(document.createElement("canvas"),{position:"absolute",left:b+"px",top:0,bottom:0})),a.progressCtx=a.progress.getContext("2d")),this.canvases.push(a)},removeCanvas:function(){var a=this.canvases.pop();a.wave.parentElement.removeChild(a.wave),this.hasProgressCanvas&&a.progress.parentElement.removeChild(a.progress)},updateDimensions:function(a,b,c){var d=Math.round(b/this.params.pixelRatio);a.waveCtx.canvas.width=b,a.waveCtx.canvas.height=c,this.style(a.waveCtx.canvas,{width:d+"px"}),this.style(this.progressWave,{display:"block"}),this.hasProgressCanvas&&(a.progressCtx.canvas.width=b,a.progressCtx.canvas.height=c,this.style(a.progressCtx.canvas,{width:d+"px"}))},clearWave:function(){for(var a in this.canvases)this.clearWaveForEntry(this.canvases[a])},clearWaveForEntry:function(a){a.waveCtx.clearRect(0,0,a.waveCtx.canvas.width,a.waveCtx.canvas.height),this.hasProgressCanvas&&a.progressCtx.clearRect(0,0,a.progressCtx.canvas.width,a.progressCtx.canvas.height)},drawBars:function(b,c){if(b[0]instanceof Array){var d=b;if(this.params.splitChannels)return this.setHeight(d.length*this.params.height*this.params.pixelRatio),void d.forEach(this.drawBars,this);b=d[0]}var e=[].some.call(b,function(a){return a<0});e&&(b=[].filter.call(b,function(a,b){return b%2==0}));var f=this.width,g=this.params.height*this.params.pixelRatio,h=g*c||0,i=g/2,j=b.length,k=this.params.barWidth*this.params.pixelRatio,l=Math.max(this.params.pixelRatio,~~(k/2)),m=k+l,n=1;this.params.normalize&&(n=a.util.max(b));var o=j/f;this.canvases[0].waveCtx.fillStyle=this.params.waveColor,this.canvases[0].progressCtx&&(this.canvases[0].progressCtx.fillStyle=this.params.progressColor);for(var p=0;p<f;p+=m){var q=Math.round(b[Math.floor(p*o)]/n*i);this.fillRect(p+this.halfPixel,i-q+h,k+this.halfPixel,2*q)}},drawWave:function(b,c){if(b[0]instanceof Array){var d=b;if(this.params.splitChannels)return this.setHeight(d.length*this.params.height*this.params.pixelRatio),void d.forEach(this.drawWave,this);b=d[0]}var e=[].some.call(b,function(a){return a<0});if(!e){for(var f=[],g=0,h=b.length;g<h;g++)f[2*g]=b[g],f[2*g+1]=-b[g];b=f}var i=this.params.height*this.params.pixelRatio,j=i*c||0,k=i/2,l=~~(b.length/this.canvases.length/2),m=1;if(this.params.normalize){var n=a.util.max(b),o=a.util.min(b);m=-o>n?-o:n}this.drawLine(l,b,m,k,j),this.fillRect(0,k+j-this.halfPixel,this.width,this.halfPixel)},drawLine:function(a,b,c,d,e){for(var f in this.canvases){var g=this.canvases[f];this.setFillStyles(g),this.drawLineToContext(g.waveCtx,a,f,b,c,d,e),this.drawLineToContext(g.progressCtx,a,f,b,c,d,e)}},drawLineToContext:function(a,b,c,d,e,f,g){if(a){var h=1;this.params.fillParent&&this.width!=b&&(h=a.canvas.width/b);var i=c*b,j=i+b+1;a.beginPath(),a.moveTo(this.halfPixel,f+g);for(var k=i;k<j;k++){var l=Math.round(d[2*k]/e*f);a.lineTo((k-i)*h+this.halfPixel,f-l+g)}for(var k=j-1;k>=i;k--){var l=Math.round(d[2*k+1]/e*f);a.lineTo((k-i)*h+this.halfPixel,f-l+g)}a.closePath(),a.fill()}},fillRect:function(a,b,c,d){for(var e in this.canvases){var f=this.canvases[e],g=e*this.maxCanvasWidth,h={x1:Math.max(a,e*this.maxCanvasWidth),y1:b,x2:Math.min(a+c,e*this.maxCanvasWidth+f.waveCtx.canvas.width),y2:b+d};h.x1<h.x2&&(this.setFillStyles(f),this.fillRectToContext(f.waveCtx,h.x1-g,h.y1,h.x2-h.x1,h.y2-h.y1),this.fillRectToContext(f.progressCtx,h.x1-g,h.y1,h.x2-h.x1,h.y2-h.y1))}},fillRectToContext:function(a,b,c,d,e){a&&a.fillRect(b,c,d,e)},setFillStyles:function(a){a.waveCtx.fillStyle=this.params.waveColor,this.hasProgressCanvas&&(a.progressCtx.fillStyle=this.params.progressColor)},updateProgress:function(a){var b=Math.round(this.width*a)/this.params.pixelRatio;this.style(this.progressWave,{width:b+"px"})}}),function(){var b=function(){var b=document.querySelectorAll("wavesurfer");Array.prototype.forEach.call(b,function(b){var c=a.util.extend({container:b,backend:"MediaElement",mediaControls:!0},b.dataset);b.style.display="block";var d=a.create(c);if(b.dataset.peaks)var e=JSON.parse(b.dataset.peaks);d.load(b.dataset.url,e)})};"complete"===document.readyState?b():window.addEventListener("load",b)}(),a});
+!function(a,b){"function"==typeof define&&define.amd?define("wavesurfer",[],function(){return a.WaveSurfer=b()}):"object"==typeof exports?module.exports=b():a.WaveSurfer=b()}(this,function(){"use strict";var a={defaultParams:{audioContext:null,audioRate:1,autoCenter:!0,backend:"WebAudio",barHeight:1,closeAudioContext:!1,container:null,cursorColor:"#333",cursorWidth:1,dragSelection:!0,fillParent:!0,forceDecode:!1,height:128,hideScrollbar:!1,interact:!0,loopSelection:!0,mediaContainer:null,mediaControls:!1,mediaType:"audio",minPxPerSec:20,partialRender:!1,pixelRatio:window.devicePixelRatio||screen.deviceXDPI/screen.logicalXDPI,progressColor:"#555",normalize:!1,renderer:"MultiCanvas",scrollParent:!1,skipLength:2,splitChannels:!1,waveColor:"#999"},init:function(b){if(this.params=a.util.extend({},this.defaultParams,b),this.container="string"==typeof b.container?document.querySelector(this.params.container):this.params.container,!this.container)throw new Error("Container element not found");if(null==this.params.mediaContainer?this.mediaContainer=this.container:"string"==typeof this.params.mediaContainer?this.mediaContainer=document.querySelector(this.params.mediaContainer):this.mediaContainer=this.params.mediaContainer,!this.mediaContainer)throw new Error("Media Container element not found");this.savedVolume=0,this.isMuted=!1,this.tmpEvents=[],this.currentAjax=null,this.createDrawer(),this.createBackend(),this.createPeakCache(),this.isDestroyed=!1},createDrawer:function(){var b=this;this.drawer=Object.create(a.Drawer[this.params.renderer]),this.drawer.init(this.container,this.params),this.drawer.on("redraw",function(){b.drawBuffer(),b.drawer.progress(b.backend.getPlayedPercents())}),this.drawer.on("click",function(a,c){setTimeout(function(){b.seekTo(c)},0)}),this.drawer.on("scroll",function(a){b.params.partialRender&&b.drawBuffer(),b.fireEvent("scroll",a)})},createBackend:function(){var b=this;this.backend&&this.backend.destroy(),"AudioElement"==this.params.backend&&(this.params.backend="MediaElement"),"WebAudio"!=this.params.backend||a.WebAudio.supportsWebAudio()||(this.params.backend="MediaElement"),this.backend=Object.create(a[this.params.backend]),this.backend.init(this.params),this.backend.on("finish",function(){b.fireEvent("finish")}),this.backend.on("play",function(){b.fireEvent("play")}),this.backend.on("pause",function(){b.fireEvent("pause")}),this.backend.on("audioprocess",function(a){b.drawer.progress(b.backend.getPlayedPercents()),b.fireEvent("audioprocess",a)})},createPeakCache:function(){this.params.partialRender&&(this.peakCache=Object.create(a.PeakCache),this.peakCache.init())},getDuration:function(){return this.backend.getDuration()},getCurrentTime:function(){return this.backend.getCurrentTime()},play:function(a,b){this.fireEvent("interaction",this.play.bind(this,a,b)),this.backend.play(a,b)},pause:function(){this.backend.isPaused()||this.backend.pause()},playPause:function(){this.backend.isPaused()?this.play():this.pause()},isPlaying:function(){return!this.backend.isPaused()},skipBackward:function(a){this.skip(-a||-this.params.skipLength)},skipForward:function(a){this.skip(a||this.params.skipLength)},skip:function(a){var b=this.getCurrentTime()||0,c=this.getDuration()||1;b=Math.max(0,Math.min(c,b+(a||0))),this.seekAndCenter(b/c)},seekAndCenter:function(a){this.seekTo(a),this.drawer.recenter(a)},seekTo:function(a){this.fireEvent("interaction",this.seekTo.bind(this,a));var b=this.backend.isPaused();b||this.backend.pause();var c=this.params.scrollParent;this.params.scrollParent=!1,this.backend.seekTo(a*this.getDuration()),this.drawer.progress(this.backend.getPlayedPercents()),b||this.backend.play(),this.params.scrollParent=c,this.fireEvent("seek",a)},stop:function(){this.pause(),this.seekTo(0),this.drawer.progress(0)},setVolume:function(a){this.backend.setVolume(a)},getVolume:function(){return this.backend.getVolume()},setPlaybackRate:function(a){this.backend.setPlaybackRate(a)},getPlaybackRate:function(){return this.backend.getPlaybackRate()},toggleMute:function(){this.setMute(!this.isMuted)},setMute:function(a){a!==this.isMuted&&(a?(this.savedVolume=this.backend.getVolume(),this.backend.setVolume(0),this.isMuted=!0):(this.backend.setVolume(this.savedVolume),this.isMuted=!1))},getMute:function(){return this.isMuted},getFilters:function(){return this.backend.filters||[]},toggleScroll:function(){this.params.scrollParent=!this.params.scrollParent,this.drawBuffer()},toggleInteraction:function(){this.params.interact=!this.params.interact},drawBuffer:function(){var a=Math.round(this.getDuration()*this.params.minPxPerSec*this.params.pixelRatio),b=this.drawer.getWidth(),c=a,d=this.drawer.getScrollX(),e=Math.min(d+b,c);if(this.params.fillParent&&(!this.params.scrollParent||a<b)&&(c=b,d=0,e=c),this.params.partialRender)for(var f=this.peakCache.addRangeToPeakCache(c,d,e),g=0;g<f.length;g++){var h=this.backend.getPeaks(c,f[g][0],f[g][1]);this.drawer.drawPeaks(h,c,f[g][0],f[g][1])}else{d=0,e=c;var h=this.backend.getPeaks(c,d,e);this.drawer.drawPeaks(h,c,d,e)}this.fireEvent("redraw",h,c)},zoom:function(a){this.params.minPxPerSec=a,this.params.scrollParent=!0,this.drawBuffer(),this.drawer.progress(this.backend.getPlayedPercents()),this.drawer.recenter(this.getCurrentTime()/this.getDuration()),this.fireEvent("zoom",a)},loadArrayBuffer:function(a){this.decodeArrayBuffer(a,function(a){this.isDestroyed||this.loadDecodedBuffer(a)}.bind(this))},loadDecodedBuffer:function(a){this.backend.load(a),this.drawBuffer(),this.fireEvent("ready")},loadBlob:function(a){var b=this,c=new FileReader;c.addEventListener("progress",function(a){b.onProgress(a)}),c.addEventListener("load",function(a){b.loadArrayBuffer(a.target.result)}),c.addEventListener("error",function(){b.fireEvent("error","Error reading file")}),c.readAsArrayBuffer(a),this.empty()},load:function(a,b,c){switch(this.empty(),this.params.backend){case"WebAudio":return this.loadBuffer(a,b);case"MediaElement":return this.loadMediaElement(a,b,c)}},loadBuffer:function(a,b){var c=function(b){return b&&this.tmpEvents.push(this.once("ready",b)),this.getArrayBuffer(a,this.loadArrayBuffer.bind(this))}.bind(this);return b?(this.backend.setPeaks(b),this.drawBuffer(),this.tmpEvents.push(this.once("interaction",c)),void 0):c()},loadMediaElement:function(a,b,c){var d=a;if("string"==typeof a)this.backend.load(d,this.mediaContainer,b,c);else{var e=a;this.backend.loadElt(e,b),d=e.src}this.tmpEvents.push(this.backend.once("canplay",function(){this.drawBuffer(),this.fireEvent("ready")}.bind(this)),this.backend.once("error",function(a){this.fireEvent("error",a)}.bind(this))),b&&this.backend.setPeaks(b),b&&!this.params.forceDecode||!this.backend.supportsWebAudio()||this.getArrayBuffer(d,function(a){this.decodeArrayBuffer(a,function(a){this.backend.buffer=a,this.backend.setPeaks(null),this.drawBuffer(),this.fireEvent("waveform-ready")}.bind(this))}.bind(this))},decodeArrayBuffer:function(a,b){this.arraybuffer=a,this.backend.decodeArrayBuffer(a,function(c){this.isDestroyed||this.arraybuffer!=a||(b(c),this.arraybuffer=null)}.bind(this),this.fireEvent.bind(this,"error","Error decoding audiobuffer"))},getArrayBuffer:function(b,c){var d=this,e=a.util.ajax({url:b,responseType:"arraybuffer"});return this.currentAjax=e,this.tmpEvents.push(e.on("progress",function(a){d.onProgress(a)}),e.on("success",function(a,b){c(a),d.currentAjax=null}),e.on("error",function(a){d.fireEvent("error","XHR error: "+a.target.statusText),d.currentAjax=null})),e},onProgress:function(a){if(a.lengthComputable)var b=a.loaded/a.total;else b=a.loaded/(a.loaded+1e6);this.fireEvent("loading",Math.round(100*b),a.target)},exportPCM:function(a,b,c){a=a||1024,b=b||1e4,c=c||!1;var d=this.backend.getPeaks(a,b),e=[].map.call(d,function(a){return Math.round(a*b)/b}),f=JSON.stringify(e);return c||window.open("data:application/json;charset=utf-8,"+encodeURIComponent(f)),f},exportImage:function(a,b){return a||(a="image/png"),b||(b=1),this.drawer.getImage(a,b)},cancelAjax:function(){this.currentAjax&&(this.currentAjax.xhr.abort(),this.currentAjax=null)},clearTmpEvents:function(){this.tmpEvents.forEach(function(a){a.un()})},empty:function(){this.backend.isPaused()||(this.stop(),this.backend.disconnectSource()),this.cancelAjax(),this.clearTmpEvents(),this.drawer.progress(0),this.drawer.setWidth(0),this.drawer.drawPeaks({length:this.drawer.getWidth()},0)},destroy:function(){this.fireEvent("destroy"),this.cancelAjax(),this.clearTmpEvents(),this.unAll(),this.backend.destroy(),this.drawer.destroy(),this.isDestroyed=!0}};return a.create=function(b){var c=Object.create(a);return c.init(b),c},a.util={extend:function(a){var b=Array.prototype.slice.call(arguments,1);return b.forEach(function(b){Object.keys(b).forEach(function(c){a[c]=b[c]})}),a},debounce:function(a,b,c){var d,e,f,g=function(){f=null,c||a.apply(e,d)};return function(){e=this,d=arguments;var h=c&&!f;clearTimeout(f),f=setTimeout(g,b),f||(f=setTimeout(g,b)),h&&a.apply(e,d)}},min:function(a){var b=+(1/0);for(var c in a)a[c]<b&&(b=a[c]);return b},max:function(a){var b=-(1/0);for(var c in a)a[c]>b&&(b=a[c]);return b},getId:function(){return"wavesurfer_"+Math.random().toString(32).substring(2)},ajax:function(b){var c=Object.create(a.Observer),d=new XMLHttpRequest,e=!1;return d.open(b.method||"GET",b.url,!0),d.responseType=b.responseType||"json",d.addEventListener("progress",function(a){c.fireEvent("progress",a),a.lengthComputable&&a.loaded==a.total&&(e=!0)}),d.addEventListener("load",function(a){e||c.fireEvent("progress",a),c.fireEvent("load",a),200==d.status||206==d.status?c.fireEvent("success",d.response,a):c.fireEvent("error",a)}),d.addEventListener("error",function(a){c.fireEvent("error",a)}),d.send(),c.xhr=d,c}},a.Observer={on:function(a,b){this.handlers||(this.handlers={});var c=this.handlers[a];return c||(c=this.handlers[a]=[]),c.push(b),{name:a,callback:b,un:this.un.bind(this,a,b)}},un:function(a,b){if(this.handlers){var c=this.handlers[a];if(c)if(b)for(var d=c.length-1;d>=0;d--)c[d]==b&&c.splice(d,1);else c.length=0}},unAll:function(){this.handlers=null},once:function(a,b){var c=this,d=function(){b.apply(this,arguments),setTimeout(function(){c.un(a,d)},0)};return this.on(a,d)},fireEvent:function(a){if(this.handlers){var b=this.handlers[a],c=Array.prototype.slice.call(arguments,1);b&&b.forEach(function(a){a.apply(null,c)})}}},a.util.extend(a,a.Observer),a.WebAudio={scriptBufferSize:256,PLAYING_STATE:0,PAUSED_STATE:1,FINISHED_STATE:2,supportsWebAudio:function(){return!(!window.AudioContext&&!window.webkitAudioContext)},getAudioContext:function(){return a.WebAudio.audioContext||(a.WebAudio.audioContext=new(window.AudioContext||window.webkitAudioContext)),a.WebAudio.audioContext},getOfflineAudioContext:function(b){return a.WebAudio.offlineAudioContext||(a.WebAudio.offlineAudioContext=new(window.OfflineAudioContext||window.webkitOfflineAudioContext)(1,2,b)),a.WebAudio.offlineAudioContext},init:function(b){this.params=b,this.ac=b.audioContext||this.getAudioContext(),this.lastPlay=this.ac.currentTime,this.startPosition=0,this.scheduledPause=null,this.states=[Object.create(a.WebAudio.state.playing),Object.create(a.WebAudio.state.paused),Object.create(a.WebAudio.state.finished)],this.createVolumeNode(),this.createScriptNode(),this.createAnalyserNode(),this.setState(this.PAUSED_STATE),this.setPlaybackRate(this.params.audioRate),this.setLength(0)},disconnectFilters:function(){this.filters&&(this.filters.forEach(function(a){a&&a.disconnect()}),this.filters=null,this.analyser.connect(this.gainNode))},setState:function(a){this.state!==this.states[a]&&(this.state=this.states[a],this.state.init.call(this))},setFilter:function(){this.setFilters([].slice.call(arguments))},setFilters:function(a){this.disconnectFilters(),a&&a.length&&(this.filters=a,this.analyser.disconnect(),a.reduce(function(a,b){return a.connect(b),b},this.analyser).connect(this.gainNode))},createScriptNode:function(){this.ac.createScriptProcessor?this.scriptNode=this.ac.createScriptProcessor(this.scriptBufferSize):this.scriptNode=this.ac.createJavaScriptNode(this.scriptBufferSize),this.scriptNode.connect(this.ac.destination)},addOnAudioProcess:function(){var a=this;this.scriptNode.onaudioprocess=function(){var b=a.getCurrentTime();b>=a.getDuration()?(a.setState(a.FINISHED_STATE),a.fireEvent("pause")):b>=a.scheduledPause?a.pause():a.state===a.states[a.PLAYING_STATE]&&a.fireEvent("audioprocess",b)}},removeOnAudioProcess:function(){this.scriptNode.onaudioprocess=null},createAnalyserNode:function(){this.analyser=this.ac.createAnalyser(),this.analyser.connect(this.gainNode)},createVolumeNode:function(){this.ac.createGain?this.gainNode=this.ac.createGain():this.gainNode=this.ac.createGainNode(),this.gainNode.connect(this.ac.destination)},setVolume:function(a){this.gainNode.gain.value=a},getVolume:function(){return this.gainNode.gain.value},decodeArrayBuffer:function(a,b,c){this.offlineAc||(this.offlineAc=this.getOfflineAudioContext(this.ac?this.ac.sampleRate:44100)),this.offlineAc.decodeAudioData(a,function(a){b(a)}.bind(this),c)},setPeaks:function(a){this.peaks=a},setLength:function(a){if(!this.mergedPeaks||a!=2*this.mergedPeaks.length-1+2){this.splitPeaks=[],this.mergedPeaks=[];for(var b=this.buffer?this.buffer.numberOfChannels:1,c=0;c<b;c++)this.splitPeaks[c]=[],this.splitPeaks[c][2*(a-1)]=0,this.splitPeaks[c][2*(a-1)+1]=0;this.mergedPeaks[2*(a-1)]=0,this.mergedPeaks[2*(a-1)+1]=0}},getPeaks:function(a,b,c){if(this.peaks)return this.peaks;this.setLength(a);for(var d=this.buffer.length/a,e=~~(d/10)||1,f=this.buffer.numberOfChannels,g=0;g<f;g++)for(var h=this.splitPeaks[g],i=this.buffer.getChannelData(g),j=b;j<=c;j++){for(var k=~~(j*d),l=~~(k+d),m=0,n=0,o=k;o<l;o+=e){var p=i[o];p>n&&(n=p),p<m&&(m=p)}h[2*j]=n,h[2*j+1]=m,(0==g||n>this.mergedPeaks[2*j])&&(this.mergedPeaks[2*j]=n),(0==g||m<this.mergedPeaks[2*j+1])&&(this.mergedPeaks[2*j+1]=m)}return this.params.splitChannels?this.splitPeaks:this.mergedPeaks},getPlayedPercents:function(){return this.state.getPlayedPercents.call(this)},disconnectSource:function(){this.source&&this.source.disconnect()},destroy:function(){this.isPaused()||this.pause(),this.unAll(),this.buffer=null,this.disconnectFilters(),this.disconnectSource(),this.gainNode.disconnect(),this.scriptNode.disconnect(),this.analyser.disconnect(),this.params.closeAudioContext&&("function"==typeof this.ac.close&&"closed"!=this.ac.state&&this.ac.close(),this.ac=null,this.params.audioContext?this.params.audioContext=null:a.WebAudio.audioContext=null,a.WebAudio.offlineAudioContext=null)},load:function(a){this.startPosition=0,this.lastPlay=this.ac.currentTime,this.buffer=a,this.createSource()},createSource:function(){this.disconnectSource(),this.source=this.ac.createBufferSource(),this.source.start=this.source.start||this.source.noteGrainOn,this.source.stop=this.source.stop||this.source.noteOff,this.source.playbackRate.value=this.playbackRate,this.source.buffer=this.buffer,this.source.connect(this.analyser)},isPaused:function(){return this.state!==this.states[this.PLAYING_STATE]},getDuration:function(){return this.buffer?this.buffer.duration:0},seekTo:function(a,b){if(this.buffer)return this.scheduledPause=null,null==a&&(a=this.getCurrentTime(),a>=this.getDuration()&&(a=0)),null==b&&(b=this.getDuration()),this.startPosition=a,this.lastPlay=this.ac.currentTime,this.state===this.states[this.FINISHED_STATE]&&this.setState(this.PAUSED_STATE),{start:a,end:b}},getPlayedTime:function(){return(this.ac.currentTime-this.lastPlay)*this.playbackRate},play:function(a,b){if(this.buffer){this.createSource();var c=this.seekTo(a,b);a=c.start,b=c.end,this.scheduledPause=b,this.source.start(0,a,b-a),"suspended"==this.ac.state&&this.ac.resume&&this.ac.resume(),this.setState(this.PLAYING_STATE),this.fireEvent("play")}},pause:function(){this.scheduledPause=null,this.startPosition+=this.getPlayedTime(),this.source&&this.source.stop(0),this.setState(this.PAUSED_STATE),this.fireEvent("pause")},getCurrentTime:function(){return this.state.getCurrentTime.call(this)},getPlaybackRate:function(){return this.playbackRate},setPlaybackRate:function(a){a=a||1,this.isPaused()?this.playbackRate=a:(this.pause(),this.playbackRate=a,this.play())}},a.WebAudio.state={},a.WebAudio.state.playing={init:function(){this.addOnAudioProcess()},getPlayedPercents:function(){var a=this.getDuration();return this.getCurrentTime()/a||0},getCurrentTime:function(){return this.startPosition+this.getPlayedTime()}},a.WebAudio.state.paused={init:function(){this.removeOnAudioProcess()},getPlayedPercents:function(){var a=this.getDuration();return this.getCurrentTime()/a||0},getCurrentTime:function(){return this.startPosition}},a.WebAudio.state.finished={init:function(){this.removeOnAudioProcess(),this.fireEvent("finish")},getPlayedPercents:function(){return 1},getCurrentTime:function(){return this.getDuration()}},a.util.extend(a.WebAudio,a.Observer),a.MediaElement=Object.create(a.WebAudio),a.util.extend(a.MediaElement,{init:function(a){this.params=a,this.media={currentTime:0,duration:0,paused:!0,playbackRate:1,play:function(){},pause:function(){}},this.mediaType=a.mediaType.toLowerCase(),this.elementPosition=a.elementPosition,this.setPlaybackRate(this.params.audioRate),this.createTimer()},createTimer:function(){var a=this,b=function(){if(!a.isPaused()){a.fireEvent("audioprocess",a.getCurrentTime());var c=window.requestAnimationFrame||window.webkitRequestAnimationFrame;c(b)}};this.on("play",b)},load:function(a,b,c,d){var e=document.createElement(this.mediaType);e.controls=this.params.mediaControls,e.autoplay=this.params.autoplay||!1,e.preload=null==d?"auto":d,e.src=a,e.style.width="100%";var f=b.querySelector(this.mediaType);f&&b.removeChild(f),b.appendChild(e),this._load(e,c)},loadElt:function(a,b){var c=a;c.controls=this.params.mediaControls,c.autoplay=this.params.autoplay||!1,this._load(c,b)},_load:function(a,b){var c=this;"function"==typeof a.load&&a.load(),a.addEventListener("error",function(){c.fireEvent("error","Error loading media element")}),a.addEventListener("canplay",function(){c.fireEvent("canplay")}),a.addEventListener("ended",function(){c.fireEvent("finish")}),this.media=a,this.peaks=b,this.onPlayEnd=null,this.buffer=null,this.setPlaybackRate(this.playbackRate)},isPaused:function(){return!this.media||this.media.paused},getDuration:function(){var a=(this.buffer||this.media).duration;return a>=1/0&&(a=this.media.seekable.end(0)),a},getCurrentTime:function(){return this.media&&this.media.currentTime},getPlayedPercents:function(){return this.getCurrentTime()/this.getDuration()||0},getPlaybackRate:function(){return this.playbackRate||this.media.playbackRate},setPlaybackRate:function(a){this.playbackRate=a||1,this.media.playbackRate=this.playbackRate},seekTo:function(a){null!=a&&(this.media.currentTime=a),this.clearPlayEnd()},play:function(a,b){this.seekTo(a),this.media.play(),b&&this.setPlayEnd(b),this.fireEvent("play")},pause:function(){this.media&&this.media.pause(),this.clearPlayEnd(),this.fireEvent("pause")},setPlayEnd:function(a){var b=this;this.onPlayEnd=function(c){c>=a&&(b.pause(),b.seekTo(a))},this.on("audioprocess",this.onPlayEnd)},clearPlayEnd:function(){this.onPlayEnd&&(this.un("audioprocess",this.onPlayEnd),this.onPlayEnd=null)},getPeaks:function(b,c,d){return this.buffer?a.WebAudio.getPeaks.call(this,b,c,d):this.peaks||[]},getVolume:function(){return this.media.volume},setVolume:function(a){this.media.volume=a},destroy:function(){this.pause(),this.unAll(),this.media&&this.media.parentNode&&this.media.parentNode.removeChild(this.media),this.media=null}}),a.AudioElement=a.MediaElement,a.Drawer={init:function(a,b){this.container=a,this.params=b,this.width=0,this.height=b.height*this.params.pixelRatio,this.lastPos=0,this.initDrawer(b),this.createWrapper(),this.createElements()},createWrapper:function(){this.wrapper=this.container.appendChild(document.createElement("wave")),this.style(this.wrapper,{display:"block",position:"relative",userSelect:"none",webkitUserSelect:"none",height:this.params.height+"px"}),(this.params.fillParent||this.params.scrollParent)&&this.style(this.wrapper,{width:"100%",overflowX:this.params.hideScrollbar?"hidden":"auto",overflowY:"hidden"}),this.setupWrapperEvents()},handleEvent:function(a,b){!b&&a.preventDefault();var c,d=a.targetTouches?a.targetTouches[0].clientX:a.clientX,e=this.wrapper.getBoundingClientRect(),f=this.width,g=this.getWidth();return!this.params.fillParent&&f<g?(c=(d-e.left)*this.params.pixelRatio/f||0,c>1&&(c=1)):c=(d-e.left+this.wrapper.scrollLeft)/this.wrapper.scrollWidth||0,c},setupWrapperEvents:function(){var a=this;this.wrapper.addEventListener("click",function(b){var c=a.wrapper.offsetHeight-a.wrapper.clientHeight;if(0!=c){var d=a.wrapper.getBoundingClientRect();if(b.clientY>=d.bottom-c)return}a.params.interact&&a.fireEvent("click",b,a.handleEvent(b))}),this.wrapper.addEventListener("scroll",function(b){a.fireEvent("scroll",b)})},drawPeaks:function(a,b,c,d){this.setWidth(b),this.params.barWidth?this.drawBars(a,0,c,d):this.drawWave(a,0,c,d)},style:function(a,b){return Object.keys(b).forEach(function(c){a.style[c]!==b[c]&&(a.style[c]=b[c])}),a},resetScroll:function(){null!==this.wrapper&&(this.wrapper.scrollLeft=0)},recenter:function(a){var b=this.wrapper.scrollWidth*a;this.recenterOnPosition(b,!0)},recenterOnPosition:function(a,b){var c=this.wrapper.scrollLeft,d=~~(this.wrapper.clientWidth/2),e=a-d,f=e-c,g=this.wrapper.scrollWidth-this.wrapper.clientWidth;if(0!=g){if(!b&&-d<=f&&f<d){var h=5;f=Math.max(-h,Math.min(h,f)),e=c+f}e=Math.max(0,Math.min(g,e)),e!=c&&(this.wrapper.scrollLeft=e)}},getScrollX:function(){return Math.round(this.wrapper.scrollLeft*this.params.pixelRatio)},getWidth:function(){return Math.round(this.container.clientWidth*this.params.pixelRatio)},setWidth:function(a){this.width!=a&&(this.width=a,this.params.fillParent||this.params.scrollParent?this.style(this.wrapper,{width:""}):this.style(this.wrapper,{width:~~(this.width/this.params.pixelRatio)+"px"}),this.updateSize())},setHeight:function(a){a!=this.height&&(this.height=a,this.style(this.wrapper,{height:~~(this.height/this.params.pixelRatio)+"px"}),this.updateSize())},progress:function(a){var b=1/this.params.pixelRatio,c=Math.round(a*this.width)*b;if(c<this.lastPos||c-this.lastPos>=b){if(this.lastPos=c,this.params.scrollParent&&this.params.autoCenter){var d=~~(this.wrapper.scrollWidth*a);this.recenterOnPosition(d)}this.updateProgress(c)}},destroy:function(){this.unAll(),this.wrapper&&(this.container.removeChild(this.wrapper),this.wrapper=null)},initDrawer:function(){},createElements:function(){},updateSize:function(){},drawWave:function(a,b){},clearWave:function(){},updateProgress:function(a){}},a.util.extend(a.Drawer,a.Observer),a.Drawer.Canvas=Object.create(a.Drawer),a.util.extend(a.Drawer.Canvas,{createElements:function(){var a=this.wrapper.appendChild(this.style(document.createElement("canvas"),{position:"absolute",zIndex:1,left:0,top:0,bottom:0}));if(this.waveCc=a.getContext("2d"),this.progressWave=this.wrapper.appendChild(this.style(document.createElement("wave"),{position:"absolute",zIndex:2,left:0,top:0,bottom:0,overflow:"hidden",width:"0",display:"none",boxSizing:"border-box",borderRightStyle:"solid",borderRightWidth:this.params.cursorWidth+"px",borderRightColor:this.params.cursorColor})),this.params.waveColor!=this.params.progressColor){var b=this.progressWave.appendChild(document.createElement("canvas"));this.progressCc=b.getContext("2d")}},updateSize:function(){var a=Math.round(this.width/this.params.pixelRatio);this.waveCc.canvas.width=this.width,this.waveCc.canvas.height=this.height,this.style(this.waveCc.canvas,{width:a+"px"}),this.style(this.progressWave,{display:"block"}),this.progressCc&&(this.progressCc.canvas.width=this.width,this.progressCc.canvas.height=this.height,this.style(this.progressCc.canvas,{width:a+"px"})),this.clearWave()},clearWave:function(){this.waveCc.clearRect(0,0,this.width,this.height),this.progressCc&&this.progressCc.clearRect(0,0,this.width,this.height)},drawBars:function(b,c,d,e){var f=this;if(b[0]instanceof Array){var g=b;if(this.params.splitChannels)return this.setHeight(g.length*this.params.height*this.params.pixelRatio),void g.forEach(function(a,b){f.drawBars(a,b,d,e)});b=g[0]}var h=[].some.call(b,function(a){return a<0}),i=1;h&&(i=2);var j=.5/this.params.pixelRatio,k=this.width,l=this.params.height*this.params.pixelRatio,m=l*c||0,n=l/2,o=b.length/i,p=this.params.barWidth*this.params.pixelRatio,q=Math.max(this.params.pixelRatio,~~(p/2)),r=p+q,s=1/this.params.barHeight;if(this.params.normalize){var t=a.util.max(b),u=a.util.min(b);s=-u>t?-u:t}var v=o/k;this.waveCc.fillStyle=this.params.waveColor,this.progressCc&&(this.progressCc.fillStyle=this.params.progressColor),[this.waveCc,this.progressCc].forEach(function(a){if(a)for(var c=d/v;c<e/v;c+=r){var f=b[Math.floor(c*v*i)]||0,g=Math.round(f/s*n);a.fillRect(c+j,n-g+m,p+j,2*g)}},this)},drawWave:function(b,c,d,e){var f=this;if(b[0]instanceof Array){var g=b;if(this.params.splitChannels)return this.setHeight(g.length*this.params.height*this.params.pixelRatio),void g.forEach(function(a,b){f.drawWave(a,b,d,e)});b=g[0]}var h=[].some.call(b,function(a){return a<0});if(!h){for(var i=[],j=0,k=b.length;j<k;j++)i[2*j]=b[j],i[2*j+1]=-b[j];b=i}var l=.5/this.params.pixelRatio,m=this.params.height*this.params.pixelRatio,n=m*c||0,o=m/2,p=~~(b.length/2),q=1;this.params.fillParent&&this.width!=p&&(q=this.width/p);var r=1/this.params.barHeight;if(this.params.normalize){var s=a.util.max(b),t=a.util.min(b);r=-t>s?-t:s}this.waveCc.fillStyle=this.params.waveColor,this.progressCc&&(this.progressCc.fillStyle=this.params.progressColor),[this.waveCc,this.progressCc].forEach(function(a){if(a){a.beginPath(),a.moveTo(d*q+l,o+n);for(var c=d;c<e;c++){var f=Math.round(b[2*c]/r*o);a.lineTo(c*q+l,o-f+n)}for(var c=e-1;c>=d;c--){var f=Math.round(b[2*c+1]/r*o);a.lineTo(c*q+l,o-f+n)}a.closePath(),a.fill(),a.fillRect(0,o+n-l,this.width,l)}},this)},updateProgress:function(a){this.style(this.progressWave,{width:a+"px"})},getImage:function(a,b){return this.waveCc.canvas.toDataURL(a,b)}}),a.Drawer.MultiCanvas=Object.create(a.Drawer),a.util.extend(a.Drawer.MultiCanvas,{initDrawer:function(a){if(this.maxCanvasWidth=null!=a.maxCanvasWidth?a.maxCanvasWidth:4e3,this.maxCanvasElementWidth=Math.round(this.maxCanvasWidth/this.params.pixelRatio),this.maxCanvasWidth<=1)throw"maxCanvasWidth must be greater than 1.";if(this.maxCanvasWidth%2==1)throw"maxCanvasWidth must be an even number.";this.hasProgressCanvas=this.params.waveColor!=this.params.progressColor,this.halfPixel=.5/this.params.pixelRatio,this.canvases=[]},createElements:function(){this.progressWave=this.wrapper.appendChild(this.style(document.createElement("wave"),{position:"absolute",zIndex:2,left:0,top:0,bottom:0,overflow:"hidden",width:"0",display:"none",boxSizing:"border-box",borderRightStyle:"solid",borderRightWidth:this.params.cursorWidth+"px",borderRightColor:this.params.cursorColor})),this.addCanvas()},updateSize:function(){for(var a=Math.round(this.width/this.params.pixelRatio),b=Math.ceil(a/this.maxCanvasElementWidth);this.canvases.length<b;)this.addCanvas();for(;this.canvases.length>b;)this.removeCanvas();for(var c in this.canvases){var d=this.maxCanvasWidth+2*Math.ceil(this.params.pixelRatio/2);c==this.canvases.length-1&&(d=this.width-this.maxCanvasWidth*(this.canvases.length-1)),this.updateDimensions(this.canvases[c],d,this.height),this.clearWaveForEntry(this.canvases[c])}},addCanvas:function(){var a={},b=this.maxCanvasElementWidth*this.canvases.length;a.wave=this.wrapper.appendChild(this.style(document.createElement("canvas"),{position:"absolute",zIndex:1,left:b+"px",top:0,bottom:0})),a.waveCtx=a.wave.getContext("2d"),this.hasProgressCanvas&&(a.progress=this.progressWave.appendChild(this.style(document.createElement("canvas"),{position:"absolute",left:b+"px",top:0,bottom:0})),a.progressCtx=a.progress.getContext("2d")),this.canvases.push(a)},removeCanvas:function(){var a=this.canvases.pop();a.wave.parentElement.removeChild(a.wave),this.hasProgressCanvas&&a.progress.parentElement.removeChild(a.progress)},updateDimensions:function(a,b,c){var d=Math.round(b/this.params.pixelRatio),e=Math.round(this.width/this.params.pixelRatio);a.start=a.waveCtx.canvas.offsetLeft/e||0,a.end=a.start+d/e,a.waveCtx.canvas.width=b,a.waveCtx.canvas.height=c,this.style(a.waveCtx.canvas,{width:d+"px"}),this.style(this.progressWave,{display:"block"}),this.hasProgressCanvas&&(a.progressCtx.canvas.width=b,a.progressCtx.canvas.height=c,this.style(a.progressCtx.canvas,{width:d+"px"}))},clearWave:function(){for(var a in this.canvases)this.clearWaveForEntry(this.canvases[a])},clearWaveForEntry:function(a){a.waveCtx.clearRect(0,0,a.waveCtx.canvas.width,a.waveCtx.canvas.height),this.hasProgressCanvas&&a.progressCtx.clearRect(0,0,a.progressCtx.canvas.width,a.progressCtx.canvas.height)},drawBars:function(b,c,d,e){var f=this;if(b[0]instanceof Array){var g=b;if(this.params.splitChannels)return this.setHeight(g.length*this.params.height*this.params.pixelRatio),void g.forEach(function(a,b){f.drawBars(a,b,d,e)});b=g[0]}var h=[].some.call(b,function(a){return a<0}),i=1;h&&(i=2);var j=this.width,k=this.params.height*this.params.pixelRatio,l=k*c||0,m=k/2,n=b.length/i,o=this.params.barWidth*this.params.pixelRatio,p=Math.max(this.params.pixelRatio,~~(o/2)),q=o+p,r=1/this.params.barHeight;if(this.params.normalize){var s=a.util.max(b),t=a.util.min(b);r=-t>s?-t:s}for(var u=n/j,v=d/u;v<e/u;v+=q){var w=b[Math.floor(v*u*i)]||0,x=Math.round(w/r*m);this.fillRect(v+this.halfPixel,m-x+l,o+this.halfPixel,2*x)}},drawWave:function(b,c,d,e){var f=this;if(b[0]instanceof Array){var g=b;if(this.params.splitChannels)return this.setHeight(g.length*this.params.height*this.params.pixelRatio),void g.forEach(function(a,b){f.drawWave(a,b,d,e)});b=g[0]}var h=[].some.call(b,function(a){return a<0});if(!h){for(var i=[],j=0,k=b.length;j<k;j++)i[2*j]=b[j],i[2*j+1]=-b[j];b=i}var l=this.params.height*this.params.pixelRatio,m=l*c||0,n=l/2,o=1/this.params.barHeight;if(this.params.normalize){var p=a.util.max(b),q=a.util.min(b);o=-q>p?-q:p}this.drawLine(b,o,n,m,d,e),this.fillRect(0,n+m-this.halfPixel,this.width,this.halfPixel)},drawLine:function(a,b,c,d,e,f){for(var g in this.canvases){var h=this.canvases[g];this.setFillStyles(h),this.drawLineToContext(h,h.waveCtx,a,b,c,d,e,f),this.drawLineToContext(h,h.progressCtx,a,b,c,d,e,f)}},drawLineToContext:function(a,b,c,d,e,f,g,h){if(b){var i=c.length/2,j=1;this.params.fillParent&&this.width!=i&&(j=this.width/i);var k=Math.round(i*a.start),l=Math.round(i*a.end);if(!(k>h||l<g)){var m=Math.max(k,g),n=Math.min(l,h);b.beginPath(),b.moveTo((m-k)*j+this.halfPixel,e+f);for(var o=m;o<n;o++){var p=c[2*o]||0,q=Math.round(p/d*e);b.lineTo((o-k)*j+this.halfPixel,e-q+f)}for(var o=n-1;o>=m;o--){var p=c[2*o+1]||0,q=Math.round(p/d*e);b.lineTo((o-k)*j+this.halfPixel,e-q+f)}b.closePath(),b.fill()}}},fillRect:function(a,b,c,d){for(var e=Math.floor(a/this.maxCanvasWidth),f=Math.min(Math.ceil((a+c)/this.maxCanvasWidth)+1,this.canvases.length),g=e;g<f;g++){var h=this.canvases[g],i=g*this.maxCanvasWidth,j={x1:Math.max(a,g*this.maxCanvasWidth),y1:b,x2:Math.min(a+c,g*this.maxCanvasWidth+h.waveCtx.canvas.width),y2:b+d};j.x1<j.x2&&(this.setFillStyles(h),this.fillRectToContext(h.waveCtx,j.x1-i,j.y1,j.x2-j.x1,j.y2-j.y1),this.fillRectToContext(h.progressCtx,j.x1-i,j.y1,j.x2-j.x1,j.y2-j.y1))}},fillRectToContext:function(a,b,c,d,e){a&&a.fillRect(b,c,d,e)},setFillStyles:function(a){a.waveCtx.fillStyle=this.params.waveColor,this.hasProgressCanvas&&(a.progressCtx.fillStyle=this.params.progressColor)},updateProgress:function(a){this.style(this.progressWave,{width:a+"px"})},getImage:function(a,b){var c=[];return this.canvases.forEach(function(d){c.push(d.wave.toDataURL(a,b))}),c.length>1?c:c[0]}}),a.Drawer.SplitWavePointPlot=Object.create(a.Drawer.Canvas),a.util.extend(a.Drawer.SplitWavePointPlot,{defaultPlotParams:{plotNormalizeTo:"whole",plotTimeStart:0,plotMin:0,plotMax:1,plotColor:"#f63",plotProgressColor:"#F00",
+plotPointHeight:2,plotPointWidth:2,plotSeparator:!0,plotSeparatorColor:"black",plotRangeDisplay:!1,plotRangeUnits:"",plotRangePrecision:4,plotRangeIgnoreOutliers:!1,plotRangeFontSize:12,plotRangeFontType:"Ariel",waveDrawMedianLine:!0,plotFileDelimiter:"\t"},plotTimeStart:0,plotTimeEnd:-1,plotArrayLoaded:!1,plotArray:[],plotPoints:[],plotMin:0,plotMax:1,initDrawer:function(a){var b=this;for(var c in this.defaultPlotParams)void 0===this.params[c]&&(this.params[c]=this.defaultPlotParams[c]);if(this.plotTimeStart=this.params.plotTimeStart,void 0!==this.params.plotTimeEnd&&(this.plotTimeEnd=this.params.plotTimeEnd),Array.isArray(a.plotArray))this.plotArray=a.plotArray,this.plotArrayLoaded=!0;else{var d=function(a){b.plotArray=a,b.plotArrayLoaded=!0,b.fireEvent("plot_array_loaded")};this.loadPlotArrayFromFile(a.plotFileUrl,d,this.params.plotFileDelimiter)}},drawPeaks:function(a,b,c,d){if(1==this.plotArrayLoaded)this.setWidth(b),this.splitChannels=!0,this.params.height=this.params.height/2,a[0]instanceof Array&&(a=a[0]),this.params.barWidth?this.drawBars(a,1,c,d):this.drawWave(a,1,c,d),this.params.height=2*this.params.height,this.calculatePlots(),this.drawPlots();else{var e=this;e.on("plot-array-loaded",function(){e.drawPeaks(a,b,c,d)})}},drawPlots:function(){var a=this.params.height*this.params.pixelRatio/2,b=.5/this.params.pixelRatio;this.waveCc.fillStyle=this.params.plotColor,this.progressCc&&(this.progressCc.fillStyle=this.params.plotProgressColor);for(var c in this.plotPoints){var d=parseInt(c),e=a-this.params.plotPointHeight-this.plotPoints[c]*(a-this.params.plotPointHeight),f=this.params.plotPointHeight;this.waveCc.fillRect(d,e,this.params.plotPointWidth,f),this.progressCc&&this.progressCc.fillRect(d,e,this.params.plotPointWidth,f)}this.params.plotSeparator&&(this.waveCc.fillStyle=this.params.plotSeparatorColor,this.waveCc.fillRect(0,a,this.width,b)),this.params.plotRangeDisplay&&this.displayPlotRange()},displayPlotRange:function(){var a=this.params.plotRangeFontSize*this.params.pixelRatio,b=this.plotMax.toPrecision(this.params.plotRangePrecision)+" "+this.params.plotRangeUnits,c=this.plotMin.toPrecision(this.params.plotRangePrecision)+" "+this.params.plotRangeUnits;this.waveCc.font=a.toString()+"px "+this.params.plotRangeFontType,this.waveCc.fillText(b,3,a),this.waveCc.fillText(c,3,this.height/2)},calculatePlots:function(){this.plotPoints={},this.calculatePlotTimeEnd();for(var a=[],b=-1,c=0,d=99999999999999,e=0,f=99999999999999,g=this.plotTimeEnd-this.plotTimeStart,h=0;h<this.plotArray.length;h++){var i=this.plotArray[h];if(i.value>c&&(c=i.value),i.value<d&&(d=i.value),i.time>=this.plotTimeStart&&i.time<=this.plotTimeEnd){var j=Math.round(this.width*(i.time-this.plotTimeStart)/g);if(a.push(i.value),j!==b&&a.length>0){var k=this.avg(a);k>e&&(e=k),k<f&&(f=k),this.plotPoints[b]=k,a=[]}b=j}}"whole"==this.params.plotNormalizeTo?(this.plotMin=d,this.plotMax=c):"values"==this.params.plotNormalizeTo?(this.plotMin=this.params.plotMin,this.plotMax=this.params.plotMax):(this.plotMin=f,this.plotMax=e),this.normalizeValues()},normalizeValues:function(){var a={};if("none"!==this.params.plotNormalizeTo){for(var b in this.plotPoints){var c=(this.plotPoints[b]-this.plotMin)/(this.plotMax-this.plotMin);c>1?this.params.plotRangeIgnoreOutliers||(a[b]=1):c<0?this.params.plotRangeIgnoreOutliers||(a[b]=0):a[b]=c}this.plotPoints=a}},loadPlotArrayFromFile:function(b,c,d){void 0===d&&(d="\t");var e=[],f={url:b,responseType:"text"},g=a.util.ajax(f);g.on("load",function(a){if(200==a.currentTarget.status){for(var b=a.currentTarget.responseText.split("\n"),f=0;f<b.length;f++){var g=b[f].split(d);2==g.length&&e.push({time:parseFloat(g[0]),value:parseFloat(g[1])})}c(e)}})},calculatePlotTimeEnd:function(){void 0!==this.params.plotTimeEnd?this.plotTimeEnd=this.params.plotTimeEnd:this.plotTimeEnd=this.plotArray[this.plotArray.length-1].time},avg:function(a){var b=a.reduce(function(a,b){return a+b});return b/a.length}}),a.util.extend(a.Drawer.SplitWavePointPlot,a.Observer),a.PeakCache={init:function(){this.clearPeakCache()},clearPeakCache:function(){this.peakCacheRanges=[],this.peakCacheLength=-1},addRangeToPeakCache:function(a,b,c){a!=this.peakCacheLength&&(this.clearPeakCache(),this.peakCacheLength=a);for(var d=[],e=0;e<this.peakCacheRanges.length&&this.peakCacheRanges[e]<b;)e++;for(e%2==0&&d.push(b);e<this.peakCacheRanges.length&&this.peakCacheRanges[e]<=c;)d.push(this.peakCacheRanges[e]),e++;e%2==0&&d.push(c),d=d.filter(function(a,b,c){return 0==b?a!=c[b+1]:b==c.length-1?a!=c[b-1]:a!=c[b-1]&&a!=c[b+1]}),this.peakCacheRanges=this.peakCacheRanges.concat(d),this.peakCacheRanges=this.peakCacheRanges.sort(function(a,b){return a-b}).filter(function(a,b,c){return 0==b?a!=c[b+1]:b==c.length-1?a!=c[b-1]:a!=c[b-1]&&a!=c[b+1]});var f=[];for(e=0;e<d.length;e+=2)f.push([d[e],d[e+1]]);return f},getCacheRanges:function(){for(var a=[],b=0;b<this.peakCacheRanges.length;b+=2)a.push([this.peakCacheRanges[b],this.peakCacheRanges[b+1]]);return a}},function(){var b=function(){var b=document.querySelectorAll("wavesurfer");Array.prototype.forEach.call(b,function(b){var c=a.util.extend({container:b,backend:"MediaElement",mediaControls:!0},b.dataset);b.style.display="block";var d=a.create(c);if(b.dataset.peaks)var e=JSON.parse(b.dataset.peaks);d.load(b.dataset.url,e)})};"complete"===document.readyState?b():window.addEventListener("load",b)}(),a});
 
 },{}],"/home/stahl/duino/CocoTeens7/Wav2SketchJS/node_modules/wavesurfer.js/plugin/wavesurfer.regions.js":[function(require,module,exports){
 'use strict';
@@ -16847,21 +15502,28 @@ WaveSurfer.Regions = {
         var slop = params.slop || 2;
         var pxMove = 0;
 
-        function eventDown(e) {
+        var eventDown = function (e) {
             if (e.touches && e.touches.length > 1) { return; }
+
+            // Check whether the click/tap is on the bottom-most DOM element
+            // Effectively prevent clicks on the scrollbar from registering as
+            // region creation.
+            if (e.target.childElementCount > 0) { return; }
+
             touchId = e.targetTouches ? e.targetTouches[0].identifier : null;
 
             drag = true;
-            start = my.wavesurfer.drawer.handleEvent(e);
+            start = my.wavesurfer.drawer.handleEvent(e, true);
             region = null;
-        }
+        };
         this.wrapper.addEventListener('mousedown', eventDown);
         this.wrapper.addEventListener('touchstart', eventDown);
         this.on('disable-drag-selection', function() {
             my.wrapper.removeEventListener('touchstart', eventDown);
             my.wrapper.removeEventListener('mousedown', eventDown);
         });
-        function eventUp(e) {
+
+        var eventUp = function (e) {
             if (e.touches && e.touches.length > 1) { return; }
 
             drag = false;
@@ -16873,14 +15535,15 @@ WaveSurfer.Regions = {
             }
 
             region = null;
-        }
+        };
         this.wrapper.addEventListener('mouseup', eventUp);
         this.wrapper.addEventListener('touchend', eventUp);
         this.on('disable-drag-selection', function() {
             my.wrapper.removeEventListener('touchend', eventUp);
             my.wrapper.removeEventListener('mouseup', eventUp);
         });
-        function eventMove(e) {
+
+        var eventMove = function (e) {
             if (!drag) { return; }
             if (++pxMove <= slop) { return; }
 
@@ -16897,7 +15560,7 @@ WaveSurfer.Regions = {
                 start: Math.min(end * duration, start * duration),
                 end: Math.max(end * duration, start * duration)
             });
-        }
+        };
         this.wrapper.addEventListener('mousemove', eventMove);
         this.wrapper.addEventListener('touchmove', eventMove);
         this.on('disable-drag-selection', function() {
@@ -16939,7 +15602,10 @@ WaveSurfer.Region = {
 
         this.bindInOut();
         this.render();
-        this.wavesurfer.on('zoom', this.updateRender.bind(this));
+
+        this.onZoom = this.updateRender.bind(this);
+        this.wavesurfer.on('zoom', this.onZoom);
+
         this.wavesurfer.fireEvent('region-created', this);
 
     },
@@ -16987,8 +15653,8 @@ WaveSurfer.Region = {
         if (this.element) {
             this.wrapper.removeChild(this.element);
             this.element = null;
+            this.wavesurfer.un('zoom', this.onZoom);
             this.fireEvent('remove');
-            this.wavesurfer.un('zoom', this.updateRender.bind(this));
             this.wavesurfer.fireEvent('region-removed', this);
         }
     },
@@ -17061,16 +15727,14 @@ WaveSurfer.Region = {
         }).join('-');
     },
 
+    getWidth: function () {
+        return this.wavesurfer.drawer.width / this.wavesurfer.params.pixelRatio;
+    },
+
     /* Update element's position, width, color. */
-    updateRender: function (pxPerSec) {
+    updateRender: function () {
         var dur = this.wavesurfer.getDuration();
-        var width;
-        if (pxPerSec) {
-            width = Math.round(this.wavesurfer.getDuration() * pxPerSec);
-        }
-        else {
-            width = this.wrapper.scrollWidth;
-        }
+        var width = this.getWidth();
 
         if (this.start < 0) {
           this.start = 0;
@@ -17090,9 +15754,15 @@ WaveSurfer.Region = {
         }
 
         if (this.element != null) {
+            // Calculate the left and width values of the region such that
+            // no gaps appear between regions.
+            var left = Math.round(this.start / dur * width);
+            var regionWidth =
+                Math.round(this.end / dur * width) - left;
+
             this.style(this.element, {
-                left: ~~(this.start / dur * width) + 'px',
-                width: ~~((this.end - this.start) / dur * width) + 'px',
+                left: left + 'px',
+                width: regionWidth + 'px',
                 backgroundColor: this.color,
                 cursor: this.drag ? 'move' : 'default'
             });
@@ -17181,7 +15851,7 @@ WaveSurfer.Region = {
                 touchId = e.targetTouches ? e.targetTouches[0].identifier : null;
 
                 e.stopPropagation();
-                startTime = my.wavesurfer.drawer.handleEvent(e) * duration;
+                startTime = my.wavesurfer.drawer.handleEvent(e, true) * duration;
 
                 if (e.target.tagName.toLowerCase() == 'handle') {
                     if (e.target.classList.contains('wavesurfer-handle-start')) {
@@ -17191,6 +15861,7 @@ WaveSurfer.Region = {
                     }
                 } else {
                     drag = true;
+                    resize = false;
                 }
             };
             var onUp = function (e) {
@@ -17199,8 +15870,6 @@ WaveSurfer.Region = {
                 if (drag || resize) {
                     drag = false;
                     resize = false;
-                    e.stopPropagation();
-                    e.preventDefault();
 
                     my.fireEvent('update-end', e);
                     my.wavesurfer.fireEvent('region-update-end', my, e);
@@ -17251,6 +15920,11 @@ WaveSurfer.Region = {
     },
 
     onDrag: function (delta) {
+        var maxEnd = this.wavesurfer.getDuration();
+        if ((this.end + delta) > maxEnd || (this.start + delta) < 0) {
+            return;
+        }
+
         this.update({
             start: this.start + delta,
             end: this.end + delta
@@ -17910,7 +16584,7 @@ var dust = require('dustjs-linkedin');
 },{"dustjs-linkedin":"/home/stahl/duino/CocoTeens7/Wav2SketchJS/node_modules/dustjs-linkedin/lib/dust.js"}],"/home/stahl/duino/CocoTeens7/Wav2SketchJS/src/js/templates/entry_single.dust":[function(require,module,exports){
 (function() {
 var dust = require('dustjs-linkedin');
-(function(dust){dust.register("src\/js\/templates\/entry_single",body_0);function body_0(chk,ctx){return chk.w("<div class=\"row entry\"><div class=\"small-12 column\"><div class=\"row\"><div class=\"small-9 column\">").f(ctx.get(["filename"], false),ctx,"h").w(" | ").f(ctx.get(["samplename"], false),ctx,"h").w(" | ").f(ctx.get(["size"], false),ctx,"h",["humanFileSize"]).w(" | ").f(ctx.get(["modified"], false),ctx,"h").w(" | ").f(ctx.get(["type"], false),ctx,"h").w(" | <a download=\"").f(ctx.get(["samplename"], false),ctx,"h").w(".h\" href=\"data:application/octet-stream;charset=utf-8;base64,").f(ctx.get(["hfile_base64"], false),ctx,"h").w("\">").f(ctx.get(["samplename"], false),ctx,"h").w(".h</a> | <a download=\"").f(ctx.get(["samplename"], false),ctx,"h").w(".cpp\" href=\"data:application/octet-stream;charset=utf-8;base64,").f(ctx.get(["cppfile_base64"], false),ctx,"h").w("\">").f(ctx.get(["samplename"], false),ctx,"h").w(".cpp</a></div><div class=\"column\"><div class=\"expanded button-group\"><a class=\"button small convert\"><i class=\"fa fa-gear fa-lg\"></i></a><a class=\"button small play\"><i class=\"fa fa-play fa-lg\"></i></a><a class=\"alert button small delete\"><i class=\"fa fa-trash fa-lg\"></i></a></div></div></div><div class=\"row\"><div class=\"small-12 column\"><div class=\"waveform-").f(ctx.get(["cid"], false),ctx,"h").w("\"></div></div></div></div></div>");}body_0.__dustBody=!0;return body_0}(dust));module.exports = function (context, callback) { dust.render("src/js/templates/entry_single", context || {}, callback); };
+(function(dust){dust.register("src\/js\/templates\/entry_single",body_0);function body_0(chk,ctx){return chk.w("<div class=\"row entry\"><div class=\"small-12 column\"><div class=\"row\"><div class=\"small-9 column\">").f(ctx.get(["filename"], false),ctx,"h").w(" | ").f(ctx.get(["samplename"], false),ctx,"h").w(" | ").f(ctx.get(["size"], false),ctx,"h",["humanFileSize"]).w(" | ").f(ctx.get(["modified"], false),ctx,"h").w(" | ").f(ctx.get(["type"], false),ctx,"h").w(" | <a download=\"").f(ctx.get(["samplename"], false),ctx,"h").w(".h\" href=\"data:application/octet-stream;charset=utf-8;base64,").f(ctx.get(["hfile_base64"], false),ctx,"h").w("\">").f(ctx.get(["samplename"], false),ctx,"h").w(".h</a> | <a download=\"").f(ctx.get(["samplename"], false),ctx,"h").w(".cpp\" href=\"data:application/octet-stream;charset=utf-8;base64,").f(ctx.get(["cppfile_base64"], false),ctx,"h").w("\">").f(ctx.get(["samplename"], false),ctx,"h").w(".cpp</a></div><div class=\"column\"><div class=\"expanded button-group\"><a class=\"button small convert\"><i class=\"fa fa-wrench fa-lg\"></i></a><a class=\"alert button small delete\"><i class=\"fa fa-trash fa-lg\"></i></a></div></div></div><div class=\"row\"><div class=\"column align-self-middle\"><a class=\"large expanded button play\"><i class=\"fa fa-play fa-lg\"></i></a></div><div class=\"small-10 column align-self-middle\"><div class=\"waveform-").f(ctx.get(["cid"], false),ctx,"h").w("\"></div></div></div></div></div>");}body_0.__dustBody=!0;return body_0}(dust));module.exports = function (context, callback) { dust.render("src/js/templates/entry_single", context || {}, callback); };
 }).call(this);
 
 },{"dustjs-linkedin":"/home/stahl/duino/CocoTeens7/Wav2SketchJS/node_modules/dustjs-linkedin/lib/dust.js"}],"/home/stahl/duino/CocoTeens7/Wav2SketchJS/src/js/templates/layout.dust":[function(require,module,exports){
@@ -18214,7 +16888,7 @@ module.exports = Base.ListView.extend({
     },
 
 });
-},{"../helpers/base64binary.js":"/home/stahl/duino/CocoTeens7/Wav2SketchJS/src/js/helpers/base64binary.js","../models/entry":"/home/stahl/duino/CocoTeens7/Wav2SketchJS/src/js/models/entry.js","../templates/entry_list.dust":"/home/stahl/duino/CocoTeens7/Wav2SketchJS/src/js/templates/entry_list.dust","./base":"/home/stahl/duino/CocoTeens7/Wav2SketchJS/src/js/views/base.js","./entry_single":"/home/stahl/duino/CocoTeens7/Wav2SketchJS/src/js/views/entry_single.js","base64-js":"/home/stahl/duino/CocoTeens7/Wav2SketchJS/node_modules/base64-js/lib/b64.js"}],"/home/stahl/duino/CocoTeens7/Wav2SketchJS/src/js/views/entry_single.js":[function(require,module,exports){
+},{"../helpers/base64binary.js":"/home/stahl/duino/CocoTeens7/Wav2SketchJS/src/js/helpers/base64binary.js","../models/entry":"/home/stahl/duino/CocoTeens7/Wav2SketchJS/src/js/models/entry.js","../templates/entry_list.dust":"/home/stahl/duino/CocoTeens7/Wav2SketchJS/src/js/templates/entry_list.dust","./base":"/home/stahl/duino/CocoTeens7/Wav2SketchJS/src/js/views/base.js","./entry_single":"/home/stahl/duino/CocoTeens7/Wav2SketchJS/src/js/views/entry_single.js","base64-js":"/home/stahl/duino/CocoTeens7/Wav2SketchJS/node_modules/base64-js/index.js"}],"/home/stahl/duino/CocoTeens7/Wav2SketchJS/src/js/views/entry_single.js":[function(require,module,exports){
 (function (global){
 var Backbone = require('backbone');
 var _ = require('underscore');
@@ -18369,8 +17043,8 @@ module.exports = Base.SingleView.extend({
 var _ = require('underscore');
 var Base = require('./base.js');
 
-var res = 88,
-refreshRate = 20,
+var res = 24,
+refreshRate = 50,
 rad = Math.PI / 180,
 aa = ab = ac = ad = 0,
 cr = cg = cb  = 128,

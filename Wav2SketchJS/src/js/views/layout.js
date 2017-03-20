@@ -1,8 +1,8 @@
 var _ = require('underscore');
 var Base = require('./base.js');
 
-var res = 88,
-refreshRate = 20,
+var res = 24,
+refreshRate = 50,
 rad = Math.PI / 180,
 aa = ab = ac = ad = 0,
 cr = cg = cb  = 128,
